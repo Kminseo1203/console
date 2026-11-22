@@ -2,13 +2,25 @@
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>봇 연결 시험</title></head>
 <body style="font-family:sans-serif;max-width:520px;margin:40px auto;padding:0 16px">
-<h2>Pages → 봇 연결 시험</h2>
+<h2>웹 → 봇 연결 시험 (폴링)</h2>
 <button id="b" style="padding:10px 16px">봇에 ping</button>
 <pre id="o" style="white-space:pre-wrap;background:#f3f3f3;padding:12px;margin-top:16px">(결과가 여기에 나와요)</pre>
 <script>
+const o = document.getElementById('o');
 document.getElementById('b').onclick = async () => {
-  const o = document.getElementById('o'); o.textContent = '요청 중...';
-  try { const r = await fetch('/api/botping'); o.textContent = r.status + '\n' + await r.text(); }
-  catch (e) { o.textContent = '오류: ' + e.message; }
+  o.textContent = '작업 등록 중...';
+  try {
+    const r = await fetch('/api/ping', { method: 'POST' });
+    const j = await r.json();
+    if (!r.ok) { o.textContent = r.status + '\n' + JSON.stringify(j); return; }
+    const t0 = Date.now();
+    while (Date.now() - t0 < 30000) {
+      await new Promise(s => setTimeout(s, 1000));
+      const q = await (await fetch('/api/result?id=' + j.id)).json();
+      o.textContent = '봇 응답 기다리는 중... ' + Math.round((Date.now() - t0) / 1000) + '초 (' + q.status + ')';
+      if (q.status === 'done') { o.textContent = '성공!\n' + JSON.stringify(q.result, null, 2); return; }
+    }
+    o.textContent = '30초 안에 봇이 응답하지 않았어요. 봇 로그와 .env(WEB_SYNC_URL)를 확인해 주세요.';
+  } catch (e) { o.textContent = '오류: ' + e.message; }
 };
 </script></body></html>
