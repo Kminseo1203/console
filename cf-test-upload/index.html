@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>봇 연결 시험</title></head>
+<body style="font-family:sans-serif;max-width:520px;margin:40px auto;padding:0 16px">
+<h2>Pages → 봇 연결 시험</h2>
+<button id="b" style="padding:10px 16px">봇에 ping</button>
+<pre id="o" style="white-space:pre-wrap;background:#f3f3f3;padding:12px;margin-top:16px">(결과가 여기에 나와요)</pre>
+<script>
+document.getElementById('b').onclick = async () => {
+  const o = document.getElementById('o'); o.textContent = '요청 중...';
+  try { const r = await fetch('/api/botping'); o.textContent = r.status + '\n' + await r.text(); }
+  catch (e) { o.textContent = '오류: ' + e.message; }
+};
+</script></body></html>
