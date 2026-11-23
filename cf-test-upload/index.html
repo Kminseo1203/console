@@ -1,26 +1,340 @@
 <!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>봇 연결 시험</title></head>
-<body style="font-family:sans-serif;max-width:520px;margin:40px auto;padding:0 16px">
-<h2>웹 → 봇 연결 시험 (폴링)</h2>
-<button id="b" style="padding:10px 16px">봇에 ping</button>
-<pre id="o" style="white-space:pre-wrap;background:#f3f3f3;padding:12px;margin-top:16px">(결과가 여기에 나와요)</pre>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#a9312f">
+<title>BOT CONSOLE</title>
+<script>const PAGE = ({ '/shop': 'shop', '/music': 'music', '/mod': 'mod' })[location.pathname.replace(/\/+$/, '')] || 'home'; document.documentElement.dataset.page = PAGE;</script>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--mute:#7a746f;--line:#e6e2de;--soft:#f7f5f3;--pri:#a9312f;--priH:#8e2725}
+@media(prefers-color-scheme:dark){:root{--bg:#131111;--fg:#f2eeea;--mute:#a39c96;--line:#2c2826;--soft:#1c1918;--pri:#d0493f;--priH:#e0584e}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 "Pretendard","Noto Sans KR",system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+
+/* 상단 바 */
+.top{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line)}
+.top-in{max-width:1080px;margin:0 auto;padding:0 20px;height:60px;display:flex;align-items:center;gap:28px}
+.logo{font-weight:800;letter-spacing:.16em;font-size:.95rem;color:var(--fg);text-decoration:none}
+.logo b{color:var(--pri)}
+nav{display:flex;gap:22px;flex:1}
+nav a{font-size:.78rem;letter-spacing:.14em;font-weight:700;color:var(--fg);text-decoration:none;opacity:.7}
+nav a:hover{opacity:1;color:var(--pri)}
+#auth{font-size:.85rem;display:flex;align-items:center;gap:10px;white-space:nowrap;margin-left:auto}
+@media(max-width:640px){nav{display:none}}
+
+/* 히어로 */
+.hero{background:var(--soft);border-bottom:1px solid var(--line);border-radius:0 0 32px 32px}
+.hero-in{max-width:1080px;margin:0 auto;padding:72px 20px 64px}
+.eyebrow{font-size:.75rem;letter-spacing:.24em;font-weight:700;color:var(--pri);text-transform:uppercase}
+.hero h1{font-size:clamp(2rem,6.4vw,3.8rem);line-height:1.08;margin:14px 0;font-weight:800;letter-spacing:-.01em;text-transform:uppercase}
+.hero p{color:var(--mute);margin:0 0 28px;font-size:1.02rem}
+.link{display:inline-flex;gap:8px;align-items:center;font-weight:700;letter-spacing:.12em;font-size:.78rem;color:var(--fg);text-decoration:none;border-bottom:2px solid var(--pri);padding-bottom:3px}
+.link:hover{color:var(--pri)}
+
+/* 본문 */
+main{max-width:1080px;margin:0 auto;padding:44px 20px 80px}
+section{margin-bottom:60px;scroll-margin-top:80px}
+.sec-h{display:flex;align-items:baseline;gap:14px;border-bottom:1px solid var(--fg);padding-bottom:12px;margin-bottom:22px}
+.sec-h small{letter-spacing:.2em;color:var(--pri);font-weight:800;font-size:.75rem}
+.sec-h h2{margin:0;font-size:1.35rem;letter-spacing:.06em;text-transform:uppercase;font-weight:800}
+.sec-h span{margin-left:auto;color:var(--mute);font-size:.85rem}
+h3{margin:22px 0 10px;font-size:.8rem;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+#gate{border:1px solid var(--line);border-radius:18px;background:var(--soft);padding:18px 22px;margin-bottom:40px}
+#gate p{margin:0}
+
+/* 버튼 / 입력 */
+a.btn,button{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 20px;border-radius:999px;border:1px solid var(--fg);font:inherit;font-size:.85rem;font-weight:700;letter-spacing:.03em;cursor:pointer;text-decoration:none;background:var(--bg);color:var(--fg);transition:background .15s,color .15s,border-color .15s,box-shadow .15s,transform .15s}
+button:hover:not(:disabled),a.btn:hover{background:var(--fg);color:var(--bg)}
+a.btn{padding:8px 14px}
+.pri{background:var(--pri);border-color:var(--pri);color:#fff}
+.pri:hover:not(:disabled),a.btn.pri:hover{background:var(--priH);border-color:var(--priH);color:#fff}
+.danger{background:transparent;border-color:var(--pri);color:var(--pri)}
+.danger:hover:not(:disabled){background:var(--pri);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+input,select{width:100%;font:inherit;padding:12px 16px;border-radius:14px;border:1px solid var(--line);background:var(--bg);color:var(--fg);margin-bottom:10px}
+input:focus,select:focus{outline:2px solid var(--pri);outline-offset:-1px;border-color:var(--pri)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>*{flex:1;min-width:110px}
+.row+.row{margin-top:8px}
+small.hint{color:var(--mute);display:block;margin:-4px 0 12px}
+.log{font-size:.88rem;color:var(--mute);white-space:pre-wrap;margin-top:8px;min-height:1.2em}
+.locked{opacity:.45;pointer-events:none;filter:grayscale(.4)}
+
+/* 상점 탭 / 카드 */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:14px 0 16px;overflow-x:auto}
+.tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;padding:10px 16px;background:transparent;color:var(--mute);margin-bottom:-1px;white-space:nowrap;letter-spacing:.06em}
+.tabs button:hover:not(:disabled){background:transparent;color:var(--fg)}
+.tabs .on,.tabs .on:hover:not(:disabled){color:var(--pri);border-bottom-color:var(--pri)}
+#shopBox{color:var(--fg);white-space:normal;margin-top:0}
+#shopBox>.log{margin-top:6px}
+.shophead{font-weight:700;letter-spacing:.03em;margin-top:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;margin-top:16px}
+.card{border:1px solid var(--line);border-top:4px solid var(--tier,var(--line));border-radius:18px;overflow:hidden;background:var(--bg);display:flex;flex-direction:column;box-shadow:0 4px 14px rgba(0,0,0,.06)}
+.card .thumb{background:var(--soft);height:112px;display:flex;align-items:center;justify-content:center;padding:10px}
+.card .thumb img{max-width:100%;max-height:100%;object-fit:contain}
+.card .meta{padding:12px 14px 14px}
+.card .nm{display:flex;gap:6px;align-items:center;font-weight:700;font-size:.92rem;line-height:1.3}
+.card img.tier{width:16px;height:16px;flex:none}
+.card .ds{margin-top:6px;font-size:.88rem;color:var(--mute)}
+.card .ds b{color:var(--pri);font-size:1rem}
+.card .ds s{opacity:.7}
+
+/* 패널(주소)별 화면 */
+[hidden]{display:none!important}
+html:not([data-page=home]) .hero,html:not([data-page=home]) #home{display:none}
+html[data-page=home] main>section:not(#home):not(#gate){display:none}
+html[data-page=shop] #musicSec,html[data-page=shop] #modSec,html[data-page=music] #shopSec,html[data-page=music] #modSec,html[data-page=mod] #shopSec,html[data-page=mod] #musicSec{display:none}
+html:not([data-page=home]) main{padding-top:36px}
+nav a.on{opacity:1;color:var(--pri)}
+.panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px}
+.panel{display:flex;flex-direction:column;gap:6px;padding:26px 24px;border:1px solid var(--line);border-radius:22px;background:var(--bg);color:var(--fg);text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.05);transition:transform .2s,box-shadow .2s,border-color .2s}
+.panel:hover{transform:translateY(-5px);box-shadow:0 14px 30px rgba(0,0,0,.12);border-color:var(--pri)}
+.panel small{color:var(--pri);font-weight:800;letter-spacing:.2em;font-size:.75rem}
+.panel .pt{font-size:1.5rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.panel p{margin:0;color:var(--mute);font-size:.92rem;flex:1}
+.panel .go{margin-top:12px;font-weight:700;letter-spacing:.12em;font-size:.78rem;color:var(--pri)}
+
+/* 애니메이션 (끝 값을 지정하지 않아서 .locked 같은 원래 스타일 그대로 돌아옴) */
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}}
+@keyframes pop{from{opacity:0;transform:translateY(12px) scale(.96)}}
+@keyframes shimmer{to{background-position:-200% 0}}
+@keyframes pulse{50%{opacity:.4}}
+.hero-in>*{animation:fadeUp .8s cubic-bezier(.2,.7,.2,1) backwards}
+.hero-in>:nth-child(2){animation-delay:.08s}.hero-in>:nth-child(3){animation-delay:.16s}.hero-in>:nth-child(4){animation-delay:.24s}
+.reveal:not(.in){opacity:0;transform:translateY(18px)}
+.reveal.in{animation:fadeUp .7s cubic-bezier(.2,.7,.2,1) backwards}
+.top{transition:box-shadow .25s}.top.scrolled{box-shadow:0 6px 20px rgba(0,0,0,.07)}
+button:hover:not(:disabled),a.btn:hover{transform:translateY(-1px)}
+button:active:not(:disabled),a.btn:active{transform:scale(.96)}
+.tabs button:hover:not(:disabled),.tabs button:active:not(:disabled){transform:none}
+.card{animation:pop .5s cubic-bezier(.2,.7,.2,1) backwards;transition:transform .2s,box-shadow .2s}
+.card:hover{transform:translateY(-5px);box-shadow:0 12px 26px rgba(0,0,0,.13)}
+.grid .card:nth-child(2){animation-delay:.06s}.grid .card:nth-child(3){animation-delay:.12s}.grid .card:nth-child(4){animation-delay:.18s}
+.grid .card:nth-child(5){animation-delay:.24s}.grid .card:nth-child(6){animation-delay:.3s}.grid .card:nth-child(7){animation-delay:.36s}
+.grid .card:nth-child(8){animation-delay:.42s}.grid .card:nth-child(9){animation-delay:.48s}
+.card.sk{height:190px;box-shadow:none;background:linear-gradient(100deg,var(--soft) 30%,var(--line) 50%,var(--soft) 70%);background-size:200% 100%;animation:shimmer 1.4s linear infinite}
+.card.sk:hover{transform:none;box-shadow:none}
+.pulse{animation:pulse 1.2s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.reveal:not(.in){opacity:1;transform:none}}
+
+footer{border-top:1px solid var(--line);padding:26px 20px;text-align:center;color:var(--mute);font-size:.78rem;letter-spacing:.1em}
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in">
+  <a class="logo" href="/">BOT<b>.</b>CONSOLE</a>
+  <nav><a href="/shop" data-p="shop">SHOP</a><a href="/music" data-p="music">MUSIC</a><a href="/mod" data-p="mod">MODERATION</a></nav>
+  <div id="auth"></div>
+</div></header>
+
+<div class="hero" id="top"><div class="hero-in">
+  <div class="eyebrow">Discord Bot Console</div>
+  <h1>Server, simplified.</h1>
+  <p>음악, 서버 관리, 발로란트 상점을 한곳에서.</p>
+  <a class="link" href="/shop">VIEW SHOP &rarr;</a>
+</div></div>
+
+<main>
+  <section id="gate" style="display:none"><p>로그인하면 음악 제어와 관리 기능을 쓸 수 있어요.</p></section>
+
+  <section id="home">
+    <div class="sec-h"><small>MENU</small><h2>Panels</h2><span>원하는 패널을 골라요</span></div>
+    <div class="panels">
+      <a class="panel" href="/shop"><small>01</small><div class="pt">Shop</div><p>발로란트 오늘의 상점 · 장식상점 · 번들 · 야시장</p><div class="go">OPEN &rarr;</div></a>
+      <a class="panel" href="/music"><small>02</small><div class="pt">Music</div><p>노래 재생, 스킵, 일시정지, 대기열 확인</p><div class="go">OPEN &rarr;</div></a>
+      <a class="panel" href="/mod"><small>03</small><div class="pt">Moderation</div><p>경고 · 뮤트 · 차단 (서버 관리자 전용)</p><div class="go">OPEN &rarr;</div></a>
+    </div>
+  </section>
+
+  <section id="shopSec" class="locked">
+    <div class="sec-h"><small>01</small><h2>Shop</h2><span>발로란트 상점</span></div>
+    <select id="vAcc" style="display:none"></select>
+    <div class="tabs" id="shopTabs">
+      <button class="sec on" data-view="daily">상점</button>
+      <button class="sec" data-view="weekly">장식상점</button>
+      <button class="sec" data-view="bundle">번들</button>
+      <button class="sec" data-view="night">야시장</button>
+    </div>
+    <div id="shopBox" class="log">불러오는 중...</div>
+  </section>
+
+  <section id="musicSec" class="locked">
+    <div class="sec-h"><small>02</small><h2>Music</h2><span>음악</span></div>
+    <div id="nowplaying" class="log">불러오는 중...</div>
+    <div class="row" style="margin-top:12px">
+      <button class="sec" data-job="skip">⏭ 스킵</button>
+      <button class="sec" data-job="pause">⏸ 일시정지</button>
+      <button class="sec" data-job="resume">▶ 재개</button>
+      <button class="danger" data-job="stop">⏹ 정지</button>
+    </div>
+    <h3>재생하기</h3>
+    <select id="channelSel"><option value="">음성 채널 불러오는 중...</option></select>
+    <input id="playQuery" placeholder="검색어 또는 유튜브 링크">
+    <button class="pri" id="playBtn">▶ 재생 / 대기열 추가</button>
+    <div id="playLog" class="log"></div>
+  </section>
+
+  <section id="modSec" class="locked">
+    <div class="sec-h"><small>03</small><h2>Moderation</h2><span>관리자 전용</span></div>
+    <small class="hint">아래 버튼을 눌러도, 실제 관리자가 아니면 봇이 거부해요.</small>
+    <div class="row">
+      <input id="modUser" placeholder="대상 유저 ID (숫자)">
+      <input id="modReason" placeholder="사유 (선택)">
+    </div>
+    <input id="modDuration" placeholder="뮤트 기간 (예: 10m, 1h — 뮤트에만 사용)">
+    <div class="row">
+      <button class="sec" data-mod="warn">⚠️ 경고</button>
+      <button class="sec" data-mod="mute">🔇 뮤트</button>
+      <button class="sec" data-mod="unmute">🔊 뮤트 해제</button>
+    </div>
+    <div class="row">
+      <button class="danger" data-mod="ban">🔨 차단</button>
+      <button class="sec" data-mod="unban">✅ 차단 해제</button>
+    </div>
+    <div id="modLog" class="log"></div>
+  </section>
+</main>
+<footer>BOT.CONSOLE</footer>
 <script>
-const o = document.getElementById('o');
-document.getElementById('b').onclick = async () => {
-  o.textContent = '작업 등록 중...';
-  try {
-    const r = await fetch('/api/ping', { method: 'POST' });
-    const j = await r.json();
-    if (!r.ok) { o.textContent = r.status + '\n' + JSON.stringify(j); return; }
-    const t0 = Date.now();
-    while (Date.now() - t0 < 30000) {
-      await new Promise(s => setTimeout(s, 1000));
-      const q = await (await fetch('/api/result?id=' + j.id)).json();
-      o.textContent = '봇 응답 기다리는 중... ' + Math.round((Date.now() - t0) / 1000) + '초 (' + q.status + ')';
-      if (q.status === 'done') { o.textContent = '성공!\n' + JSON.stringify(q.result, null, 2); return; }
+const $ = s => document.querySelector(s);
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function fmtMsg(m) {
+  if (m == null) return '완료';
+  if (typeof m === 'string') return m;
+  const parts = [];
+  if (m.content) parts.push(m.content);
+  for (const e of m.embeds ?? []) {
+    if (e.title) parts.push(e.title);
+    if (e.description) parts.push(e.description);
+    for (const f of e.fields ?? []) parts.push(`${f.name}: ${f.value}`);
+  }
+  return parts.join('\n') || '완료';
+}
+async function submitJob(type, data, maxMs = 20000) {
+  const r = await fetch('/api/job', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type, data }) });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || '요청 실패');
+  const t0 = Date.now();
+  while (Date.now() - t0 < maxMs) {
+    await new Promise(s => setTimeout(s, 1000));
+    const q = await (await fetch('/api/result?id=' + j.id)).json();
+    if (q.status === 'done') {
+      if (q.result?.error) throw new Error(q.result.error);
+      return q.result;
     }
-    o.textContent = '30초 안에 봇이 응답하지 않았어요. 봇 로그와 .env(WEB_SYNC_URL)를 확인해 주세요.';
-  } catch (e) { o.textContent = '오류: ' + e.message; }
-};
-</script></body></html>
+  }
+  throw new Error('봇이 ' + Math.round(maxMs / 1000) + '초 안에 응답하지 않았어요. 봇이 켜져 있는지 확인해 주세요.');
+}
+
+async function loadChannels() {
+  try {
+    const r = await submitJob('channels', {});
+    $('#channelSel').innerHTML = r.channels.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('') || '<option value="">음성 채널 없음</option>';
+  } catch (e) { $('#channelSel').innerHTML = `<option value="">${e.message}</option>`; }
+}
+async function refreshQueue() {
+  try { const r = await submitJob('queue', {}); $('#nowplaying').textContent = fmtMsg(r.message) || '대기열 정보 없음'; }
+  catch (e) { $('#nowplaying').textContent = '⚠️ ' + e.message; }
+}
+
+document.querySelectorAll('[data-job]').forEach(b => b.addEventListener('click', async () => {
+  b.disabled = true;
+  try { const r = await submitJob(b.dataset.job, {}); $('#nowplaying').textContent = fmtMsg(r.message); }
+  catch (e) { $('#nowplaying').textContent = '⚠️ ' + e.message; }
+  finally { b.disabled = false; setTimeout(refreshQueue, 1000); }
+}));
+$('#playBtn').addEventListener('click', async () => {
+  const query = $('#playQuery').value.trim(), channelId = $('#channelSel').value;
+  if (!query) return; if (!channelId) { $('#playLog').textContent = '❌ 음성 채널을 선택해 주세요.'; return; }
+  $('#playBtn').disabled = true; $('#playLog').textContent = '요청하는 중...';
+  try { const r = await submitJob('play', { query, channelId }); $('#playLog').textContent = '✅ ' + fmtMsg(r.message); }
+  catch (e) { $('#playLog').textContent = '❌ ' + e.message; }
+  finally { $('#playBtn').disabled = false; setTimeout(refreshQueue, 1500); }
+});
+
+document.querySelectorAll('[data-mod]').forEach(b => b.addEventListener('click', async () => {
+  const type = b.dataset.mod, userId = $('#modUser').value.trim(), reason = $('#modReason').value.trim(), duration = $('#modDuration').value.trim();
+  if (!userId) { $('#modLog').textContent = '❌ 대상 유저 ID를 입력해 주세요.'; return; }
+  b.disabled = true; $('#modLog').textContent = '처리 중...';
+  try { const r = await submitJob(type, { userId, reason, duration }); $('#modLog').textContent = '✅ ' + fmtMsg(r.message); }
+  catch (e) { $('#modLog').textContent = '❌ ' + e.message; }
+  finally { b.disabled = false; }
+}));
+
+
+// ── 발로란트 상점 표시 ──
+const rel = s => { const d = s * 1000 - Date.now(); if (d <= 0) return '곧 갱신'; const m = Math.floor(d / 60000); return (m >= 60 ? Math.floor(m / 60) + '시간 ' + (m % 60) + '분' : m + '분') + ' 후'; };
+const md = t => esc(t ?? '').replace(/&lt;t:(\d+):R&gt;/g, (_, s) => rel(+s)).replace(/~~(.+?)~~/g, '<s>$1</s>').replace(/\*\*`?(.+?)`?\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '$1').replace(/\n/g, '<br>');
+const img = (u, cls) => /^https:\/\//.test(u || '') ? `<img class="${cls}" src="${esc(u)}" alt="" loading="lazy">` : '';
+function renderShop(m) {
+  const embeds = m?.embeds ?? [];
+  if (!embeds.length) return `<div class="log">${md(m?.content ?? '상점 정보를 불러오지 못했어요.')}</div>`;
+  const [head, ...items] = embeds;
+  let out = `<div class="shophead">${md(head.description)}</div>`;
+  if (head.footer?.text) out += `<div class="log">${md(head.footer.text)}</div>`;
+  out += '<div class="grid">';
+  for (const e of items) {
+    const col = typeof e.color === 'number' ? '#' + e.color.toString(16).padStart(6, '0') : 'var(--line)';
+    out += `<div class="card" style="--tier:${col}"><div class="thumb">${img(e.thumbnail?.url, 'th')}</div><div class="meta"><div class="nm">${img(e.author?.icon_url, 'tier')}<span>${esc(e.author?.name ?? '')}</span></div><div class="ds">${md(e.description)}</div></div></div>`;
+  }
+  return out + '</div>';
+}
+
+let shopView = 'daily', shopSeq = 0;
+async function loadShop() {
+  const seq = ++shopSeq, box = $('#shopBox'); box.innerHTML = '<div class="log pulse">불러오는 중... (처음엔 시간이 좀 걸려요)</div><div class="grid">' + '<div class="card sk"></div>'.repeat(4) + '</div>';
+  try {
+    const r = await submitJob('shop', { account: $('#vAcc').value || '-', view: shopView }, 60000);
+    if (seq === shopSeq) box.innerHTML = renderShop(r.message);
+  } catch (e) { if (seq === shopSeq) box.textContent = '⚠️ ' + e.message; }
+}
+async function loadShopAccounts() {
+  try {
+    const a = await submitJob('vaccounts', {});
+    const sel = $('#vAcc');
+    if (!a.accounts.length) { sel.style.display = 'none'; $('#shopBox').innerHTML = '<div class="log">등록된 발로란트 계정이 없어요. 디스코드에서 <b>/vlogin</b> 으로 QR 로그인한 뒤 새로고침해 주세요.</div>'; return; }
+    sel.innerHTML = a.accounts.map(x => `<option value="${esc(x.puuid)}"${x.puuid === a.active ? ' selected' : ''}>${esc(x.name)} (${esc(String(x.shard).toUpperCase())})</option>`).join('');
+    sel.style.display = a.accounts.length > 1 ? 'block' : 'none';
+    loadShop();
+  } catch (e) { $('#shopBox').textContent = '⚠️ ' + e.message; }
+}
+document.querySelectorAll('#shopTabs button').forEach(b => b.addEventListener('click', () => {
+  shopView = b.dataset.view;
+  document.querySelectorAll('#shopTabs button').forEach(x => x.classList.toggle('on', x === b));
+  if ($('#shopSec').classList.contains('locked')) return;
+  loadShop();
+}));
+$('#vAcc').addEventListener('change', loadShop);
+
+(async () => {
+  const me = await (await fetch('/auth/me')).json();
+  if (me.loggedIn) {
+    $('#auth').innerHTML = `${me.username} 님 · <a class="btn sec" href="/auth/logout">로그아웃</a>`;
+    $('#musicSec').classList.remove('locked'); $('#modSec').classList.remove('locked'); $('#shopSec').classList.remove('locked');
+    if (PAGE === 'shop') loadShopAccounts();
+    if (PAGE === 'music') { loadChannels(); refreshQueue(); }
+  } else {
+    $('#auth').innerHTML = `<a class="btn pri" href="/auth/login?next=${encodeURIComponent(location.pathname)}">Discord로 로그인</a>`;
+    $('#gate').style.display = 'block';
+  }
+})();
+
+// ── 현재 패널 표시 ──
+document.querySelectorAll('nav a').forEach(a => a.classList.toggle('on', a.dataset.p === PAGE));
+if (PAGE !== 'home') document.title = { shop: 'SHOP', music: 'MUSIC', mod: 'MODERATION' }[PAGE] + ' · BOT.CONSOLE';
+
+// ── 스크롤하면 섹션이 부드럽게 나타나고, 스크롤하면 상단 바에 그림자 ──
+try {
+  const top = document.querySelector('.top');
+  addEventListener('scroll', () => top.classList.toggle('scrolled', scrollY > 8), { passive: true });
+  if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: 0.08 });
+    document.querySelectorAll('main > section:not(#gate)').forEach(s => { s.classList.add('reveal'); io.observe(s); });
+  }
+} catch {}
+</script>
+</body>
+</html>
