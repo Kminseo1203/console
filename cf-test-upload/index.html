@@ -132,7 +132,7 @@ footer{border-top:1px solid var(--line);padding:26px 20px;text-align:center;colo
 <div class="hero" id="top"><div class="hero-in">
   <div class="eyebrow">Discord Bot Console</div>
   <h1>Server, simplified.</h1>
-  <p>음악, 서버 관리, 발로란트 상점을 한곳에서.</p>
+  <p>서버 관리를 한곳에서.</p>
   <a class="link" href="/shop">VIEW SHOP &rarr;</a>
 </div></div>
 
@@ -185,13 +185,13 @@ footer{border-top:1px solid var(--line);padding:26px 20px;text-align:center;colo
     </div>
     <input id="modDuration" placeholder="뮤트 기간 (예: 10m, 1h — 뮤트에만 사용)">
     <div class="row">
-      <button class="sec" data-mod="warn">⚠️ 경고</button>
-      <button class="sec" data-mod="mute">🔇 뮤트</button>
-      <button class="sec" data-mod="unmute">🔊 뮤트 해제</button>
+      <button class="sec" data-mod="warn">경고</button>
+      <button class="sec" data-mod="mute">뮤트</button>
+      <button class="sec" data-mod="unmute">뮤트 해제</button>
     </div>
     <div class="row">
-      <button class="danger" data-mod="ban">🔨 차단</button>
-      <button class="sec" data-mod="unban">✅ 차단 해제</button>
+      <button class="danger" data-mod="ban">서버 차단</button>
+      <button class="sec" data-mod="unban">차단 해제</button>
     </div>
     <div id="modLog" class="log"></div>
   </section>
@@ -237,30 +237,30 @@ async function loadChannels() {
 }
 async function refreshQueue() {
   try { const r = await submitJob('queue', {}); $('#nowplaying').textContent = fmtMsg(r.message) || '대기열 정보 없음'; }
-  catch (e) { $('#nowplaying').textContent = '⚠️ ' + e.message; }
+  catch (e) { $('#nowplaying').textContent = '' + e.message; }
 }
 
 document.querySelectorAll('[data-job]').forEach(b => b.addEventListener('click', async () => {
   b.disabled = true;
   try { const r = await submitJob(b.dataset.job, {}); $('#nowplaying').textContent = fmtMsg(r.message); }
-  catch (e) { $('#nowplaying').textContent = '⚠️ ' + e.message; }
+  catch (e) { $('#nowplaying').textContent = '' + e.message; }
   finally { b.disabled = false; setTimeout(refreshQueue, 1000); }
 }));
 $('#playBtn').addEventListener('click', async () => {
   const query = $('#playQuery').value.trim(), channelId = $('#channelSel').value;
-  if (!query) return; if (!channelId) { $('#playLog').textContent = '❌ 음성 채널을 선택해 주세요.'; return; }
+  if (!query) return; if (!channelId) { $('#playLog').textContent = '음성 채널을 선택해 주세요.'; return; }
   $('#playBtn').disabled = true; $('#playLog').textContent = '요청하는 중...';
-  try { const r = await submitJob('play', { query, channelId }); $('#playLog').textContent = '✅ ' + fmtMsg(r.message); }
-  catch (e) { $('#playLog').textContent = '❌ ' + e.message; }
+  try { const r = await submitJob('play', { query, channelId }); $('#playLog').textContent = '' + fmtMsg(r.message); }
+  catch (e) { $('#playLog').textContent = '' + e.message; }
   finally { $('#playBtn').disabled = false; setTimeout(refreshQueue, 1500); }
 });
 
 document.querySelectorAll('[data-mod]').forEach(b => b.addEventListener('click', async () => {
   const type = b.dataset.mod, userId = $('#modUser').value.trim(), reason = $('#modReason').value.trim(), duration = $('#modDuration').value.trim();
-  if (!userId) { $('#modLog').textContent = '❌ 대상 유저 ID를 입력해 주세요.'; return; }
+  if (!userId) { $('#modLog').textContent = '대상 유저 ID를 입력해 주세요.'; return; }
   b.disabled = true; $('#modLog').textContent = '처리 중...';
-  try { const r = await submitJob(type, { userId, reason, duration }); $('#modLog').textContent = '✅ ' + fmtMsg(r.message); }
-  catch (e) { $('#modLog').textContent = '❌ ' + e.message; }
+  try { const r = await submitJob(type, { userId, reason, duration }); $('#modLog').textContent = '' + fmtMsg(r.message); }
+  catch (e) { $('#modLog').textContent = '' + e.message; }
   finally { b.disabled = false; }
 }));
 
@@ -289,7 +289,7 @@ async function loadShop() {
   try {
     const r = await submitJob('shop', { account: $('#vAcc').value || '-', view: shopView }, 60000);
     if (seq === shopSeq) box.innerHTML = renderShop(r.message);
-  } catch (e) { if (seq === shopSeq) box.textContent = '⚠️ ' + e.message; }
+  } catch (e) { if (seq === shopSeq) box.textContent = '' + e.message; }
 }
 async function loadShopAccounts() {
   try {
@@ -299,7 +299,7 @@ async function loadShopAccounts() {
     sel.innerHTML = a.accounts.map(x => `<option value="${esc(x.puuid)}"${x.puuid === a.active ? ' selected' : ''}>${esc(x.name)} (${esc(String(x.shard).toUpperCase())})</option>`).join('');
     sel.style.display = a.accounts.length > 1 ? 'block' : 'none';
     loadShop();
-  } catch (e) { $('#shopBox').textContent = '⚠️ ' + e.message; }
+  } catch (e) { $('#shopBox').textContent = '' + e.message; }
 }
 document.querySelectorAll('#shopTabs button').forEach(b => b.addEventListener('click', () => {
   shopView = b.dataset.view;
