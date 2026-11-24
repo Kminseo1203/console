@@ -353,9 +353,9 @@ const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60
 function beep() { try { const c = new (window.AudioContext || window.webkitAudioContext)(), o = c.createOscillator(), g = c.createGain(); o.connect(g); g.connect(c.destination); o.frequency.value = 880; g.gain.value = .15; o.start(); o.stop(c.currentTime + .6); } catch {} }
 function pomoDraw() {
   const cnt = load('st_pcnt', { d: '', n: 0 }); $('#pcnt').textContent = cnt.d === new Date().toDateString() ? `오늘 집중 ${cnt.n}번 완료` : '';
-  if (!T) { $('#pph').textContent = '대기 중'; $('#ptm').textContent = fmt((+$('#pf').value || 25) * 60); $('#pgo').textContent = '시작'; $('#ptm').classList.remove('run'); document.title = 'AI 공부방'; return; }
+  if (!T) { $('#pph').textContent = '대기 중'; $('#ptm').textContent = fmt((+$('#pf').value || 25) * 60); $('#pgo').textContent = '시작'; $('#ptm').classList.remove('run'); document.title = 'AI 기출문제 공부'; return; }
   const left = Math.max(0, Math.round((T.end - Date.now()) / 1000));
-  $('#pph').textContent = T.phase === 'focus' ? '집중 중' : '휴식 중'; $('#ptm').textContent = fmt(left); $('#pgo').textContent = '진행 중'; $('#ptm').classList.add('run'); document.title = `${fmt(left)} · AI 공부방`;
+  $('#pph').textContent = T.phase === 'focus' ? '집중 중' : '휴식 중'; $('#ptm').textContent = fmt(left); $('#pgo').textContent = '진행 중'; $('#ptm').classList.add('run'); document.title = `${fmt(left)} · AI 기출문제 공부`;
   if (left <= 0) {
     beep();
     if (T.phase === 'focus') { const c = load('st_pcnt', { d: '', n: 0 }), d = new Date().toDateString(); keep('st_pcnt', { d, n: (c.d === d ? c.n : 0) + 1 }); T = { ...T, phase: 'rest', end: Date.now() + T.rest * 60000 }; }
