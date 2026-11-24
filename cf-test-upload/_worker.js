@@ -9,7 +9,7 @@
 //   디스코드 개발자 포털 → 해당 봇 앱 → OAuth2 → Redirects 에도 똑같이 등록해야 함.
 const json = (o, s = 200, extra = {}) => new Response(JSON.stringify(o), { status: s, headers: { 'content-type': 'application/json; charset=utf-8', ...extra } });
 const same = (a, b) => { a = String(a ?? ''); b = String(b ?? ''); if (a.length !== b.length) return false; let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i); return d === 0; };
-const PANELS = ['/shop', '/music', '/mod', '/cmd']; // 패널별 주소 (모두 같은 index.html 을 보여주고 화면에서 패널을 고름)
+const PANELS = ['/shop', '/music', '/mod', '/cmd', '/study']; // 패널별 주소 (모두 같은 index.html 을 보여주고 화면에서 패널을 고름)
 const cookie = (req, name) => (req.headers.get('Cookie') || '').split(/;\s*/).find(c => c.startsWith(name + '='))?.slice(name.length + 1);
 
 async function getSession(env, req) {
@@ -67,6 +67,10 @@ export default {
     }
     if (p === '/auth/me') { const s = await getSession(env, request); return json(s ? { loggedIn: true, username: s.username } : { loggedIn: false }); }
 
+    if (p.replace(/\/+$/, '') === '/study') { // AI 공부 페이지 (study.htm). .html 은 Pages 가 주소를 되돌려서 .htm 으로 둠
+      const r = await env.ASSETS.fetch(new Request(new URL('/study.htm', request.url)));
+      return new Response(r.body, { status: r.status, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' } });
+    }
     if (PANELS.includes(p.replace(/\/+$/, ''))) return env.ASSETS.fetch(new Request(new URL('/', request.url), request)); // /shop 등은 index.html 로
     if (!p.startsWith('/api/') && !p.startsWith('/bot/')) return env.ASSETS.fetch(request);
     if (!env.DB) return json({ error: 'D1 바인딩 DB 가 없어요 (Settings → Bindings)' }, 500);
