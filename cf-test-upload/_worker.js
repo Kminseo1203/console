@@ -1,117 +1,159 @@
-// Cloudflare Worker: 웹 콘솔 ↔ D1 ↔ 봇 중계. 로그인은 "Discord로 로그인"(OAuth2) 만 사용 —
-// 비밀번호를 따로 만들지 않고, "이 사람이 디스코드의 누구인지"만 확인함.
-// 관리자 권한(경고/밴/뮤트)은 이 Worker 가 아니라 "봇"이 서버 멤버 정보로 직접 재검증함 (webapi.js).
-//
-// 필요한 설정 (Cloudflare Pages/Workers 프로젝트 → Settings):
-//   D1 바인딩 이름: DB
-//   환경변수(Secret 권장): BOT_SYNC_SECRET, DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_REDIRECT_URI, COOKIE_SECURE(선택, 기본 true)
-//   DISCORD_REDIRECT_URI 는 "https://이프로젝트주소/auth/callback" 이어야 하고,
-//   디스코드 개발자 포털 → 해당 봇 앱 → OAuth2 → Redirects 에도 똑같이 등록해야 함.
-const json = (o, s = 200, extra = {}) => new Response(JSON.stringify(o), { status: s, headers: { 'content-type': 'application/json; charset=utf-8', ...extra } });
-const same = (a, b) => { a = String(a ?? ''); b = String(b ?? ''); if (a.length !== b.length) return false; let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i); return d === 0; };
-const PANELS = ['/shop', '/music', '/mod']; // 패널별 주소 (모두 같은 index.html 을 보여주고 화면에서 패널을 고름)
-const cookie = (req, name) => (req.headers.get('Cookie') || '').split(/;\s*/).find(c => c.startsWith(name + '='))?.slice(name.length + 1);
+// 웹 콘솔 연동 (봇 쪽). index.js 에서: require('./webapi')({ client, queues, C })
+// .env 필요: WEB_SYNC_URL, WEB_SYNC_SECRET, WEB_GUILD_ID (콘솔이 조작할 서버 ID)
+const { PermissionFlagsBits: P } = require('discord.js');
+const crypto = require('crypto');
 
-async function getSession(env, req) {
-  const token = cookie(req, 'session'); if (!token) return null;
-  const row = await env.DB.prepare('SELECT discord_id, username FROM sessions WHERE token = ? AND created > ?').bind(token, Date.now() - 604800000).first(); // 7일 지난 세션은 무효
-  return row ? { discordId: row.discord_id, username: row.username } : null;
-}
+module.exports = ({ client, queues, C, db, vApi }) => {
+  const BASE = (process.env.WEB_SYNC_URL || '').replace(/\/$/, ''), SECRET = process.env.WEB_SYNC_SECRET;
+  const GUILD_ID = process.env.WEB_GUILD_ID;
+  const EVERY = Math.max(2, +process.env.WEB_POLL_SEC || 5) * 1000;
+  if (!BASE || !SECRET) return console.warn('[webapi] .env 에 WEB_SYNC_URL / WEB_SYNC_SECRET 이 없어서 웹 연동을 켜지 않아요.');
+  if (!GUILD_ID) return console.warn('[webapi] .env 에 WEB_GUILD_ID 가 없어서 웹 연동을 켜지 않아요. (콘솔이 조작할 서버 ID)');
 
-export default {
-  async fetch(request, env) {
-    const url = new URL(request.url), p = url.pathname;
-    const secureFlag = env.COOKIE_SECURE === '0' ? '' : ' Secure;';
+  const guild = () => client.guilds.cache.get(GUILD_ID);
+  const qrs = new Map(); // 웹 QR 로그인 진행 상태: id -> { uid, status(pending|done|error|expired), msg }
+  const capture = () => { const o = { v: null }; o.fn = async x => { o.v = x; return { edit: async y => { o.v = y; } }; }; return o; };
+  // 명령어 run() 이 기대하는 모양의 가짜 메시지 객체. index.js 의 target()/check()/modLog() 등은
+  // 전부 index.js 내부 클로저라 여기서 다시 구현하지 않고, C[cmd].run() 을 그대로 호출해 재사용함.
+  async function fakeM(actingId, voiceChannelId) {
+    const g = guild(); if (!g) throw new Error('봇이 그 서버에 없어요.');
+    const member = await g.members.fetch(actingId).catch(() => null);
+    if (!member) throw new Error('그 서버의 멤버가 아니에요. 먼저 디스코드 서버에 들어와 주세요.');
+    const rep = capture();
+    return {
+      m: {
+        guild: g, author: member.user, member, isSlash: true,
+        channel: g.channels.cache.get(process.env.WEB_TEXT_CHANNEL_ID) ?? { send: async () => null }, // 선택: .env 의 WEB_TEXT_CHANNEL_ID 채널에 봇 안내 메시지(재생 시작 등)가 올라감
+        mentions: { users: { first: () => null }, channels: { first: () => null } },
+        reply: rep.fn,
+        ...(voiceChannelId ? { member: Object.assign(member, {}) } : {}),
+      },
+      rep, member,
+    };
+  }
+  function withVoice(m, member, g, channelId) {
+    // play 명령어는 m.member.voice.channel 만 읽으므로, 실제 음성 채널 객체를 그 자리에 끼워 넣음
+    const ch = g.channels.cache.get(channelId);
+    return { ...m, member: { ...member, voice: { channel: ch } } };
+  }
 
-    /* ── 디스코드 로그인 (OAuth2, identify 스코프만 — 서버 목록/권한은 요청하지 않음) ── */
-    if (p === '/auth/login') {
-      const u = new URL('https://discord.com/oauth2/authorize');
-      u.searchParams.set('client_id', env.DISCORD_CLIENT_ID);
-      u.searchParams.set('redirect_uri', env.DISCORD_REDIRECT_URI);
-      u.searchParams.set('response_type', 'code');
-      u.searchParams.set('scope', 'identify');
-      const state = crypto.randomUUID(); // 로그인 요청 위조(CSRF) 방지
-      u.searchParams.set('state', state);
-      const next = url.searchParams.get('next'); // 로그인 끝나면 돌아갈 패널
-      const lh = new Headers({ Location: u.toString() });
-      lh.append('Set-Cookie', `oauth_state=${state}; HttpOnly;${secureFlag} Path=/auth; Max-Age=600; SameSite=Lax`);
-      lh.append('Set-Cookie', `oauth_next=${PANELS.includes(next) ? next : '/'}; HttpOnly;${secureFlag} Path=/auth; Max-Age=600; SameSite=Lax`);
-      return new Response(null, { status: 302, headers: lh });
+  // 작업 종류 → { admin(관리자 권한 필요 여부), build(data) => { cmd, args, argStr, voiceChannelId } }
+  const JOBS = {
+    status: { build: () => ({ cmd: null }) }, // 아래서 특별 처리
+    channels: { build: () => ({ cmd: null }) },
+    play: { build: d => ({ cmd: 'play', args: [String(d.query ?? '')], argStr: String(d.query ?? ''), voiceChannelId: d.channelId }) },
+    skip: { build: () => ({ cmd: 'skip', args: [], argStr: '' }) },
+    pause: { build: () => ({ cmd: 'pause', args: [], argStr: '' }) },
+    resume: { build: () => ({ cmd: 'resume', args: [], argStr: '' }) },
+    stop: { build: () => ({ cmd: 'stop', args: [], argStr: '' }) },
+    queue: { build: () => ({ cmd: 'queue', args: [], argStr: '' }) },
+    vaccounts: { build: () => ({ cmd: null }) }, // 아래서 특별 처리
+    loop: { build: d => ({ cmd: 'loop', args: [String(d.mode ?? '')], argStr: String(d.mode ?? '') }) },
+    leave: { build: () => ({ cmd: 'leave', args: [], argStr: '' }) },
+    kick: { admin: true, build: d => ({ cmd: 'kick', args: [String(d.userId ?? ''), d.reason ?? ''], argStr: `${d.userId ?? ''} ${d.reason ?? ''}`.trim() }) },
+    clearwarns: { admin: true, build: d => ({ cmd: 'clearwarns', args: [String(d.userId ?? '')], argStr: String(d.userId ?? '') }) },
+    overview: { build: () => ({ cmd: null }) },
+    music: { build: () => ({ cmd: null }) },
+    members: { admin: true, build: () => ({ cmd: null }) },
+    warnings: { admin: true, build: () => ({ cmd: null }) },
+    qrstart: { build: () => ({ cmd: null }) },
+    qrstatus: { build: () => ({ cmd: null }) },
+    shop: { build: d => ({ cmd: 'vshop', args: [String(d.account || '-'), String(d.view || 'daily')], argStr: `${d.account || '-'} ${d.view || 'daily'}` }) }, // 발로란트 상점 (본인 계정만)
+    volume: { build: d => ({ cmd: 'volume', args: [String(d.level ?? '')], argStr: String(d.level ?? '') }) },
+    warn: { admin: true, build: d => ({ cmd: 'warn', args: [String(d.userId ?? ''), d.reason ?? ''], argStr: `${d.userId ?? ''} ${d.reason ?? ''}`.trim() }) },
+    ban: { admin: true, build: d => ({ cmd: 'ban', args: [String(d.userId ?? ''), d.reason ?? ''], argStr: `${d.userId ?? ''} ${d.reason ?? ''}`.trim() }) },
+    unban: { admin: true, build: d => ({ cmd: 'unban', args: [String(d.userId ?? ''), d.reason ?? ''], argStr: `${d.userId ?? ''} ${d.reason ?? ''}`.trim() }) },
+    mute: { admin: true, build: d => ({ cmd: 'mute', args: [String(d.userId ?? ''), d.duration ?? '', d.reason ?? ''].filter(Boolean), argStr: `${d.userId ?? ''} ${d.duration ?? ''} ${d.reason ?? ''}`.trim() }) },
+    unmute: { admin: true, build: d => ({ cmd: 'unmute', args: [String(d.userId ?? '')], argStr: String(d.userId ?? '') }) },
+  };
+
+  async function runJob(job) {
+    const def = JOBS[job.type]; if (!def) return { error: '알 수 없는 작업: ' + job.type };
+    const actingId = job.actingUserId; if (!actingId) return { error: '로그인 정보가 없어요. 다시 로그인해 주세요.' };
+    const g = guild(); if (!g) return { error: '봇이 설정된 서버에 없어요.' };
+
+    if (job.type === 'status') return { ok: true, ping: client.ws.ping, guilds: client.guilds.cache.size, voice: queues.size, uptimeSec: Math.round(process.uptime()) };
+    if (job.type === 'channels') return { channels: [...g.channels.cache.filter(c => c.isVoiceBased()).values()].map(c => ({ id: c.id, name: c.name })) };
+
+    const member = await g.members.fetch(actingId).catch(() => null);
+    if (!member) return { error: '서버 멤버가 아니에요.' };
+    if (def.admin && !member.permissions.has(P.Administrator)) return { error: '❌ 관리자 권한이 필요해요.' };
+    if (job.type === 'vaccounts') // 로그인한 본인이 /vlogin 으로 등록한 계정 목록 (토큰/쿠키는 보내지 않음)
+      return { accounts: (db?.vacc?.[actingId] ?? []).map(a => ({ puuid: a.puuid, name: a.name, shard: a.shard })), active: db?.vact?.[actingId] ?? null };
+    if (job.type === 'qrstart') { // 발로란트 QR 로그인 시작: QR 이미지를 돌려주고, 승인 대기는 봇이 백그라운드에서 처리
+      if (!vApi) return { error: '봇의 index.js 를 새 버전으로 교체해 주세요. (QR 로그인 연결 누락)' };
+      let QRCode; try { QRCode = require('qrcode'); } catch { return { error: '서버에서 npm i qrcode 를 실행한 뒤 봇을 재시작해 주세요.' }; }
+      for (const v of qrs.values()) if (v.uid === actingId && v.status === 'pending') return { error: '이미 진행 중인 QR 로그인이 있어요. 끝나거나 만료된 뒤에 다시 시도해 주세요.' };
+      const s = await vApi.qrStart(), id = crypto.randomUUID(), st = { uid: actingId, status: 'pending', msg: '' };
+      qrs.set(id, st);
+      (async () => {
+        try {
+          for (let n = 0; n < 40; n++) { // 3초 간격 최대 2분
+            await new Promise(r => setTimeout(r, 3000));
+            const j = await vApi.qrPoll(s).catch(() => null);
+            if (j?.type !== 'success') continue;
+            const r = await vApi.vDoLogin(actingId, await vApi.qrAccess(j.success.login_token), null);
+            if (r.ok) { st.status = 'done'; st.msg = `${r.s.name} (${r.s.shard.toUpperCase()}) 로그인 완료`; } else { st.status = 'error'; st.msg = r.content; }
+            return;
+          }
+          st.status = 'expired'; st.msg = 'QR 이 만료됐어요. 닫고 다시 시도해 주세요.';
+        } catch (e) { st.status = 'error'; st.msg = String(e.message || e); }
+        finally { setTimeout(() => qrs.delete(id), 600000); }
+      })();
+      return { id, png: await QRCode.toDataURL(s.url, { width: 240, margin: 1, errorCorrectionLevel: 'L' }) };
     }
-    if (p === '/auth/callback') {
-      const code = url.searchParams.get('code'); if (!code) return json({ error: 'missing code' }, 400);
-      const st = url.searchParams.get('state');
-      if (!st || !same(st, cookie(request, 'oauth_state'))) return json({ error: '로그인 요청이 올바르지 않아요. 다시 시도해 주세요.' }, 400);
-      const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
-        method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ client_id: env.DISCORD_CLIENT_ID, client_secret: env.DISCORD_CLIENT_SECRET, grant_type: 'authorization_code', code, redirect_uri: env.DISCORD_REDIRECT_URI }),
-      });
-      if (!tokenRes.ok) return json({ error: '디스코드 인증에 실패했어요.' }, 401);
-      const { access_token } = await tokenRes.json();
-      const meRes = await fetch('https://discord.com/api/users/@me', { headers: { Authorization: `Bearer ${access_token}` } });
-      if (!meRes.ok) return json({ error: '사용자 정보를 가져오지 못했어요.' }, 401);
-      const me = await meRes.json();
-      const token = crypto.randomUUID() + crypto.randomUUID();
-      await env.DB.prepare('DELETE FROM sessions WHERE created < ?').bind(Date.now() - 604800000).run();
-      await env.DB.prepare('INSERT INTO sessions (token, discord_id, username, created) VALUES (?, ?, ?, ?)').bind(token, me.id, `${me.username}`, Date.now()).run();
-      const nx = cookie(request, 'oauth_next');
-      const h = new Headers({ Location: PANELS.includes(nx) ? nx : '/' });
-      h.append('Set-Cookie', `session=${token}; HttpOnly;${secureFlag} Path=/; Max-Age=604800; SameSite=Lax`);
-      h.append('Set-Cookie', `oauth_state=; HttpOnly;${secureFlag} Path=/auth; Max-Age=0`);
-      h.append('Set-Cookie', `oauth_next=; HttpOnly;${secureFlag} Path=/auth; Max-Age=0`);
-      return new Response(null, { status: 302, headers: h });
+    if (job.type === 'qrstatus') {
+      const st = qrs.get(String(job.data?.id ?? ''));
+      return !st || st.uid !== actingId ? { status: 'none' } : { status: st.status, msg: st.msg };
     }
-    if (p === '/auth/logout') {
-      const token = cookie(request, 'session'); if (token) await env.DB.prepare('DELETE FROM sessions WHERE token = ?').bind(token).run();
-      return new Response(null, { status: 302, headers: { Location: '/', 'Set-Cookie': `session=; HttpOnly;${secureFlag} Path=/; Max-Age=0` } });
+    if (job.type === 'overview') return { name: g.name, members: g.memberCount, channels: g.channels.cache.size, roles: g.roles.cache.size, ping: client.ws.ping, uptimeSec: Math.round(process.uptime()), voice: queues.size, playing: [...queues.values()].filter(q => q.current).length };
+    if (job.type === 'music') { // 재생 상태를 구조화해서 전달 (웹에서 진행 막대/대기열을 그림)
+      const q = queues.get(g.id), cur = q?.current;
+      return { active: !!q, status: q?.player?.state?.status ?? 'idle', loop: q?.loop ?? 'off', volume: q ? Math.round(q.volume * 100) : (db?.guilds?.[g.id]?.volume ?? 50),
+        current: cur ? { title: cur.title, url: cur.url, duration: cur.duration, by: cur.by } : null, elapsed: cur && q.startedAt ? (Date.now() - q.startedAt) / 1000 : 0,
+        songs: (q?.songs ?? []).slice(0, 15).map(s => ({ title: s.title, duration: s.duration, by: s.by })), total: q?.songs?.length ?? 0 };
     }
-    if (p === '/auth/me') { const s = await getSession(env, request); return json(s ? { loggedIn: true, username: s.username } : { loggedIn: false }); }
+    if (job.type === 'members') { // 멤버 검색 (관리자 전용)
+      const query = String(job.data?.query ?? '').slice(0, 32); if (!query) return { members: [] };
+      const found = await g.members.search({ query, limit: 8 });
+      return { members: [...found.values()].map(m => ({ id: m.id, name: m.displayName, tag: m.user.username, avatar: m.displayAvatarURL({ size: 64 }), bot: m.user.bot, muted: m.isCommunicationDisabled() })) };
+    }
+    if (job.type === 'warnings') { // 경고 기록 (관리자 전용)
+      const list = db?.guilds?.[g.id]?.warns?.[String(job.data?.userId ?? '')] ?? [];
+      return { total: list.length, warnings: list.slice(-10).reverse().map(w => ({ reason: w.reason, date: w.date })) };
+    }
 
-    if (PANELS.includes(p.replace(/\/+$/, ''))) return env.ASSETS.fetch(new Request(new URL('/', request.url), request)); // /shop 등은 index.html 로
-    if (!p.startsWith('/api/') && !p.startsWith('/bot/')) return env.ASSETS.fetch(request);
-    if (!env.DB) return json({ error: 'D1 바인딩 DB 가 없어요 (Settings → Bindings)' }, 500);
-
+    const { cmd, args, argStr, voiceChannelId } = def.build(job.data ?? {});
+    const made = await fakeM(actingId, voiceChannelId).catch(e => ({ error: e.message }));
+    if (made.error) return { error: made.error };
+    const { m, rep } = made;
+    const useM = voiceChannelId ? withVoice(m, member, g, voiceChannelId) : m;
     try {
-      /* ── 봇 전용 (공유 비밀키로만 접근) ── */
-      if (p.startsWith('/bot/')) {
-        if (!env.BOT_SYNC_SECRET || !same(request.headers.get('x-secret'), env.BOT_SYNC_SECRET)) return json({ error: 'unauthorized' }, 401);
-        if (p === '/bot/jobs') {
-          const { results } = await env.DB.prepare("SELECT id, type, data, actor FROM jobs WHERE status = 'pending' ORDER BY created LIMIT 10").all();
-          for (const j of results) await env.DB.prepare("UPDATE jobs SET status = 'taken' WHERE id = ?").bind(j.id).run();
-          if (Math.random() < 0.02) await env.DB.prepare('DELETE FROM jobs WHERE created < ?').bind(Date.now() - 3600000).run(); // 1시간 지난 기록 정리 (가끔만)
-          return json({ jobs: results.map(j => ({ id: j.id, type: j.type, data: j.data ? JSON.parse(j.data) : null, actingUserId: j.actor })) });
-        }
-        if (p === '/bot/result' && request.method === 'POST') {
-          const b = await request.json();
-          await env.DB.prepare("UPDATE jobs SET status = 'done', result = ? WHERE id = ?").bind(JSON.stringify(b.result ?? null), String(b.id)).run();
-          return json({ ok: true });
-        }
-        return json({ error: 'not found' }, 404);
-      }
+      if (!C[cmd]) return { error: '봇에 없는 명령어예요: ' + cmd };
+      await C[cmd].run(useM, args, argStr);
+      const msg = rep.v;
+      if (typeof msg === 'string' && msg.startsWith('❌')) return { error: msg.replace(/^❌\s*/, '') }; // 명령어가 거부한 경우는 오류로 표시
+      return { ok: true, message: msg && typeof msg === 'object' ? { ...msg, components: undefined } : msg }; // 버튼(components)은 웹에서 안 쓰므로 제외
+    } catch (e) { console.error(`[webapi] ${job.type} 작업 오류:`, e); return { error: String(e.message || e) }; } // 원인 추적용: 자세한 오류는 봇 콘솔에 남김
+  }
 
-      /* ── 브라우저용: 로그인(세션 쿠키) 필요 ── */
-      const session = await getSession(env, request);
-      if (!session) return json({ error: '로그인이 필요해요.' }, 401);
+  const call = async (path, body) => {
+    const r = await fetch(BASE + path, { method: body ? 'POST' : 'GET', headers: { 'x-secret': SECRET, 'content-type': 'application/json' }, body: body && JSON.stringify(body), signal: AbortSignal.timeout(10000) });
+    if (!r.ok) throw new Error(`${path} → HTTP ${r.status}`);
+    return r.json();
+  };
 
-      if (p === '/api/job' && request.method === 'POST') {
-        const b = await request.json().catch(() => ({}));
-        const type = String(b.type ?? '');
-        if (!type || type.length > 40) return json({ error: '잘못된 요청이에요.' }, 400);
-        const recent = await env.DB.prepare('SELECT COUNT(*) AS n FROM jobs WHERE actor = ? AND created > ?').bind(session.discordId, Date.now() - 60000).first();
-        if ((recent?.n ?? 0) >= 20) return json({ error: '요청이 너무 많아요. 잠시 후 다시 시도해 주세요.' }, 429);
-        const id = crypto.randomUUID();
-        await env.DB.prepare("INSERT INTO jobs (id, type, data, actor, status, created) VALUES (?, ?, ?, ?, 'pending', ?)")
-          .bind(id, type, JSON.stringify(b.data ?? {}), session.discordId, Date.now()).run();
-        return json({ id });
-      }
-      if (p === '/api/result') {
-        const row = await env.DB.prepare('SELECT status, result FROM jobs WHERE id = ? AND actor = ?').bind(url.searchParams.get('id') ?? '', session.discordId).first(); // 본인이 만든 작업만 조회
-        if (!row) return json({ status: 'none' }, 404);
-        return json({ status: row.status, result: row.result ? JSON.parse(row.result) : null });
-      }
-      return json({ error: 'not found' }, 404);
+  let busy = false, state = null;
+  setInterval(async () => {
+    if (busy || !client.isReady()) return;
+    busy = true;
+    try {
+      const { jobs } = await call('/bot/jobs');
+      if (state !== 'ok') { state = 'ok'; console.log('[webapi] 웹 콘솔 연결됨'); }
+      for (const j of jobs) await call('/bot/result', { id: j.id, result: await runJob(j).catch(e => { console.error(`[webapi] ${j.type} 작업 오류:`, e); return { error: String(e.message || e) }; }) });
     } catch (e) {
-      return json({ error: String(e.message || e) }, 500);
-    }
-  },
+      if (state !== e.message) { state = e.message; console.error('[webapi] 웹 콘솔 연결 실패:', e.message); }
+    } finally { busy = false; }
+  }, EVERY);
+  console.log(`[webapi] ${BASE} 를 ${EVERY / 1000}초마다 확인해요 (서버: ${GUILD_ID})`);
 };
