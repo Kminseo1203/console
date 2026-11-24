@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#a9312f">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJCT1QuQ09OU09MRSI+CiAgPHJlY3QgeD0iNCIgeT0iNCIgd2lkdGg9IjU2IiBoZWlnaHQ9IjU2IiByeD0iMTciIGZpbGw9IiNhOTMxMmYiLz4KICA8cGF0aCBkPSJNMjMgMjIuNSAzNSAzMiAyMyA0MS41IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iNS4yIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KICA8cmVjdCB4PSIzOC41IiB5PSIzOC44IiB3aWR0aD0iMTAuNSIgaGVpZ2h0PSI1LjIiIHJ4PSIyLjYiIGZpbGw9IiNmZmYiLz4KPC9zdmc+Cg==">
 <title>BOT CONSOLE</title>
 <script>const PAGE = ({ '/shop': 'shop', '/music': 'music', '/mod': 'mod', '/cmd': 'cmd' })[location.pathname.replace(/\/+$/, '')] || 'home'; document.documentElement.dataset.page = PAGE;</script>
 <style>:root{--bg:#fff;--fg:#1a1a1a;--mute:#7a746f;--line:#e6e2de;--soft:#f7f5f3;--pri:#a9312f;--priH:#8e2725}
@@ -17,6 +18,11 @@ body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 "Pretendard","N
 .top-in{max-width:1080px;margin:0 auto;padding:0 20px;height:60px;display:flex;align-items:center;gap:28px}
 .logo{font-weight:800;letter-spacing:.16em;font-size:.95rem;color:var(--fg);text-decoration:none}
 .logo b{color:var(--pri)}
+.logo{display:inline-flex;align-items:center;gap:11px}
+.logo .lg{width:32px;height:32px;flex:none;transition:transform .45s cubic-bezier(.2,1.6,.4,1)}
+.logo:hover .lg{transform:rotate(-8deg) scale(1.08)}
+.logo:hover .cur{animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
 nav{display:flex;gap:22px;flex:1}
 nav a{font-size:.78rem;letter-spacing:.14em;font-weight:700;color:var(--fg);text-decoration:none;opacity:.7}
 nav a:hover{opacity:1;color:var(--pri)}
@@ -88,9 +94,14 @@ html[data-page=shop] #musicSec,html[data-page=shop] #modSec,html[data-page=music
 html:not([data-page=home]) main{padding-top:36px}
 html:not([data-page=cmd]) #cmdSec{display:none}
 html[data-page=cmd] #shopSec,html[data-page=cmd] #musicSec,html[data-page=cmd] #modSec{display:none}
+.tag{font-size:.62rem;margin-left:6px;padding:2px 8px;border-radius:999px;background:var(--soft);color:var(--pri);font-weight:800;letter-spacing:.06em;vertical-align:middle}
+.grp{text-transform:none;font-size:.9rem;letter-spacing:.02em;color:var(--fg)}
+.grp small{margin-left:10px;letter-spacing:0;text-transform:none;font-weight:600}
+.chips button.on{background:var(--pri);border-color:var(--pri);color:#fff}
 .card.cmd .meta{padding:14px 16px}.card.cmd .nm{font-size:1rem}.card.cmd .ds{min-height:2.6em}
 .lbl{display:block;margin:10px 0 6px;font-size:.82rem;font-weight:700;color:var(--mute)}
 .out{padding:12px 14px;border-radius:14px;background:var(--soft);margin:12px 0 0;font-size:.9rem;line-height:1.6;max-height:40vh;overflow:auto;animation:pop .4s cubic-bezier(.2,.9,.3,1) backwards}
+.out:has(img){max-height:none}
 .out img.big{display:block;max-width:100%;border-radius:12px;margin:8px 0}
 .sheet{max-height:92vh;overflow:auto}
 nav a.on{opacity:1;color:var(--pri)}
@@ -166,7 +177,7 @@ footer{border-top:1px solid var(--line);padding:26px 20px;text-align:center;colo
 </head>
 <body>
 <header class="top"><div class="top-in">
-  <a class="logo" href="/">BOT<b>.</b>CONSOLE</a>
+  <a class="logo" href="/" aria-label="BOT.CONSOLE 홈"><svg class="lg" viewBox="0 0 64 64" aria-hidden="true"><rect x="4" y="4" width="56" height="56" rx="17" fill="#a9312f"/><path d="M23 22.5 35 32 23 41.5" fill="none" stroke="#fff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/><rect class="cur" x="38.5" y="38.8" width="10.5" height="5.2" rx="2.6" fill="#fff"/></svg><span>BOT<b>.</b>CONSOLE</span></a>
   <nav><a href="/shop" data-p="shop">SHOP</a><a href="/music" data-p="music">MUSIC</a><a href="/mod" data-p="mod">MODERATION</a><a href="/cmd" data-p="cmd">COMMANDS</a></nav>
   <div id="auth"></div>
 </div></header>
@@ -232,6 +243,8 @@ footer{border-top:1px solid var(--line);padding:26px 20px;text-align:center;colo
     <div class="sec-h"><small>04</small><h2>Commands</h2><span>모든 명령어</span></div>
     <input id="cSearch" placeholder="명령어 검색 (Ctrl+K 로 어디서나 열기)" autocomplete="off">
     <div id="cList"><div class="log">불러오는 중...</div></div>
+    <h3 style="margin-top:34px">최근 실행 결과</h3>
+    <div id="cHist"><div class="log">불러오는 중...</div></div>
   </section>
 
   <section id="modSec" class="locked">
@@ -333,7 +346,7 @@ document.querySelectorAll('[data-mod]').forEach(b =>b.addEventListener('click', 
 // ── 발로란트 상점 표시 ──
 const rel = s =>{ const d = s * 1000 - Date.now(); if (d <= 0) return '곧 갱신'; const m = Math.floor(d / 60000); return (m >= 60 ? Math.floor(m / 60) + '시간 ' + (m % 60) + '분' : m + '분') + ' 후'; };
 const md = t =>esc(t ?? '').replace(/&lt;t:(\d+):R&gt;/g, (_, s) =>rel(+s)).replace(/~~(.+?)~~/g, '<s>$1</s>').replace(/\*\*`?(.+?)`?\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '$1').replace(/\n/g, '<br>');
-const img = (u, cls) =>/^https:\/\//.test(u || '') ? `<img class="${cls}" src="${esc(u)}" alt="" loading="lazy">` : '';
+const img = (u, cls) => /^(https:\/\/|data:image\/(png|jpeg|gif|webp);base64,)/.test(u || '') ? `<img class="${cls}" src="${esc(u)}" alt="" loading="lazy">` : '';
 function renderShop(m) {
   const embeds = m?.embeds ?? [];
   if (!embeds.length) return `<div class="log">${md(m?.content ?? '상점 정보를 불러오지 못했어요.')}</div>`;
@@ -525,18 +538,39 @@ async function loadCmds() {
   try {
     const [r, ch] = await Promise.all([submitJob('cmdlist', {}), submitJob('channels', {})]);
     cmds = r.commands; voiceCh = ch.channels; textCh = ch.text ?? [];
-    renderCmds();
+    renderCmds(); loadHist();
     const c = new URLSearchParams(location.search).get('c'); if (c) openCmd(c);
   } catch (e) { $('#cList').innerHTML = `<div class="log">${esc(e.message)}</div>`; }
 }
+const SRC = { economy: ['economy.js', '경제'], index: ['index.js', '기본 · 관리, 음악, 상점'], invites: ['invites.js', '초대 추적'], musicpanel: ['musicpanel.js', '음악 패널'], scrim: ['scrim.js', '발로란트 내전'], tickets: ['tickets.js', '티켓'], valstats: ['valstats.js', '발로란트 전적'] };
+let srcSel = '';
 function renderCmds() {
   const q = $('#cSearch').value.trim().toLowerCase();
-  const list = cmds.filter(c => !q || c.name.includes(q) || c.desc.toLowerCase().includes(q));
-  $('#cList').innerHTML = ['일반', '관리자'].map(g => {
-    const L = list.filter(c => (g === '관리자') === c.admin);
-    return L.length ? `<h3>${g}</h3><div class="grid">` + L.map((c, i) => `<div class="card cmd" data-c="${esc(c.name)}" style="--i:${Math.min(i, 10)}"><div class="meta"><div class="nm">/${esc(c.name)}</div><div class="ds">${esc(c.desc)}</div></div></div>`).join('') + '</div>' : '';
-  }).join('') || '<div class="log">검색 결과가 없어요.</div>';
+  const keys = [...new Set([...Object.keys(SRC), ...cmds.map(c => c.src)])].filter(k => cmds.some(c => c.src === k));
+  const list = cmds.filter(c => (!q || c.name.includes(q) || c.desc.toLowerCase().includes(q)) && (!srcSel || c.src === srcSel));
+  const chips = `<div class="chips"><button class="sec${srcSel ? '' : ' on'}" data-s="">전체 ${cmds.length}</button>${keys.map(k => `<button class="sec${srcSel === k ? ' on' : ''}" data-s="${esc(k)}">${esc((SRC[k] ?? [k + '.js'])[0])} ${cmds.filter(c => c.src === k).length}</button>`).join('')}</div>`;
+  $('#cList').innerHTML = chips + (keys.map(k => {
+    const L = list.filter(c => c.src === k);
+    return L.length ? `<h3 class="grp">${esc((SRC[k] ?? [k + '.js'])[0])}<small>${esc((SRC[k] ?? ['', ''])[1])}</small></h3><div class="grid">` + L.map((c, i) => `<div class="card cmd" data-c="${esc(c.name)}" style="--i:${Math.min(i, 10)}"><div class="meta"><div class="nm">/${esc(c.name)}${c.admin ? '<span class="tag">관리자</span>' : ''}</div><div class="ds">${esc(c.desc)}</div></div></div>`).join('') + '</div>' : '';
+  }).join('') || '<div class="log">검색 결과가 없어요.</div>');
 }
+$('#cList').addEventListener('click', e => { const b = e.target.closest('[data-s]'); if (b) { srcSel = b.dataset.s; renderCmds(); } });
+const ago = t => { const m = Math.floor((Date.now() - t) / 60000); return m < 1 ? '방금' : m + '분 전'; };
+const histVals = v => { try { return Object.values(JSON.parse(v ?? '{}')).filter(Boolean).join(' ').slice(0, 40); } catch { return ''; } };
+async function loadHist() {
+  try {
+    const r = await (await fetch('/api/history')).json();
+    $('#cHist').innerHTML = (r.items ?? []).length ? r.items.map((x, i) => `<div class="mem" style="--i:${Math.min(i, 8)}" data-id="${esc(x.id)}"><div><div><b>/${esc(x.name ?? '')}</b> ${esc(histVals(x.vals))}</div><small>${esc(x.err ? '오류: ' + x.err : x.status !== 'done' ? '처리 중...' : (x.summary ?? '완료'))} · ${ago(x.created)}</small></div></div>`).join('') : '<div class="log">최근 1시간 안에 실행한 기록이 없어요.</div>';
+  } catch { $('#cHist').innerHTML = ''; }
+}
+$('#cHist').addEventListener('click', async e => {
+  const m = e.target.closest('.mem'); if (!m) return;
+  try {
+    const q = await (await fetch('/api/result?id=' + m.dataset.id)).json();
+    if (q.status !== 'done') return toast('아직 처리 중이에요.', true);
+    sheet(`<h4>실행 결과</h4>${q.result?.error ? `<div class="out">${esc(q.result.error)}</div>` : renderMsgs(q.result?.messages)}<button class="sec" style="width:100%;margin-top:16px" data-x>닫기</button>`, (s, close) => { s.querySelector('[data-x]').onclick = close; });
+  } catch (err) { toast(err.message, true); }
+});
 $('#cSearch').addEventListener('input', renderCmds);
 $('#cList').addEventListener('click', e => { const c = e.target.closest('.card[data-c]'); if (c) openCmd(c.dataset.c); });
 const chOpts = (list, ph) => `<option value="">${ph}</option>` + list.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
@@ -548,7 +582,7 @@ function fieldHtml(o) {
   const ph = { user: '유저 ID 또는 이름', role: '역할 이름 또는 ID', int: '숫자' }[o.t] ?? '';
   return lab + `<input id="${id}" data-n="${esc(o.name)}" ${o.t === 'int' ? `type="number"${o.min != null ? ` min="${o.min}"` : ''}${o.max != null ? ` max="${o.max}"` : ''}` : ''} placeholder="${ph}" autocomplete="off">`;
 }
-const renderMsgs = ms => (ms ?? []).map(m => typeof m === 'string' ? `<div class="out">${md(m)}</div>` : `<div class="out">${m.content ? md(m.content) : ''}${(m.embeds ?? []).map(e => `${e.title ? `<b>${md(e.title)}</b><br>` : ''}${e.description ? md(e.description) + '<br>' : ''}${(e.fields ?? []).map(f => `<b>${md(f.name)}</b> ${md(f.value)}`).join('<br>')}${img(e.image?.url, 'big')}`).join('<hr>')}</div>`).join('') || '<div class="out">완료</div>';
+const renderMsgs = ms => (ms ?? []).map(m => typeof m === 'string' ? `<div class="out">${md(m)}</div>` : `<div class="out">${m.content ? md(m.content) : ''}${(m.embeds ?? []).map(e => `${e.title ? `<b>${md(e.title)}</b><br>` : ''}${e.description ? md(e.description) + '<br>' : ''}${(e.fields ?? []).map(f => `<b>${md(f.name)}</b> ${md(f.value)}`).join('<br>')}${img(e.image?.url, 'big')}`).join('<hr>')}${(m.images ?? []).map(i => img(i.src, 'big')).join('')}${m.note ? `<div class="log">${esc(m.note)}</div>` : ''}</div>`).join('') || '<div class="out">완료</div>';
 function openCmd(name) {
   const c = cmds.find(x => x.name === name); if (!c) return toast('없는 명령어예요.', true);
   const extra = (NEED_CH.includes(name) ? `<label class="lbl" for="f__ch">실행할 채널 *</label><select id="f__ch">${chOpts(textCh, '채널 선택')}</select>` : '')
@@ -562,7 +596,7 @@ function openCmd(name) {
       run.disabled = true; s.querySelector('#cOut').innerHTML = '<div class="log pulse">봇에게 요청하는 중...</div>';
       try {
         const r = await submitJob('cmd', { name, values, channelId: s.querySelector('#f__ch')?.value || '', voiceChannelId: s.querySelector('#f__vc')?.value || '' }, 70000);
-        s.querySelector('#cOut').innerHTML = renderMsgs(r.messages); toast('/' + name + ' 완료');
+        s.querySelector('#cOut').innerHTML = renderMsgs(r.messages); toast('/' + name + ' 완료'); loadHist(); s.querySelector('#cOut').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       } catch (e) { s.querySelector('#cOut').innerHTML = `<div class="out">${esc(e.message)}</div>`; toast(e.message, true); }
       finally { run.disabled = false; }
     };
