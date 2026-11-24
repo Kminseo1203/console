@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#a9312f">
 <title>BOT CONSOLE</title>
-<script>const PAGE = ({ '/shop': 'shop', '/music': 'music', '/mod': 'mod' })[location.pathname.replace(/\/+$/, '')] || 'home'; document.documentElement.dataset.page = PAGE;</script>
+<script>const PAGE = ({ '/shop': 'shop', '/music': 'music', '/mod': 'mod', '/cmd': 'cmd' })[location.pathname.replace(/\/+$/, '')] || 'home'; document.documentElement.dataset.page = PAGE;</script>
 <style>:root{--bg:#fff;--fg:#1a1a1a;--mute:#7a746f;--line:#e6e2de;--soft:#f7f5f3;--pri:#a9312f;--priH:#8e2725}
 @media(prefers-color-scheme:dark){:root{--bg:#131111;--fg:#f2eeea;--mute:#a39c96;--line:#2c2826;--soft:#1c1918;--pri:#d0493f;--priH:#e0584e}}
 *{box-sizing:border-box}
@@ -86,6 +86,13 @@ html:not([data-page=home]) .hero,html:not([data-page=home]) #home{display:none}
 html[data-page=home] main>section:not(#home):not(#gate){display:none}
 html[data-page=shop] #musicSec,html[data-page=shop] #modSec,html[data-page=music] #shopSec,html[data-page=music] #modSec,html[data-page=mod] #shopSec,html[data-page=mod] #musicSec{display:none}
 html:not([data-page=home]) main{padding-top:36px}
+html:not([data-page=cmd]) #cmdSec{display:none}
+html[data-page=cmd] #shopSec,html[data-page=cmd] #musicSec,html[data-page=cmd] #modSec{display:none}
+.card.cmd .meta{padding:14px 16px}.card.cmd .nm{font-size:1rem}.card.cmd .ds{min-height:2.6em}
+.lbl{display:block;margin:10px 0 6px;font-size:.82rem;font-weight:700;color:var(--mute)}
+.out{padding:12px 14px;border-radius:14px;background:var(--soft);margin:12px 0 0;font-size:.9rem;line-height:1.6;max-height:40vh;overflow:auto;animation:pop .4s cubic-bezier(.2,.9,.3,1) backwards}
+.out img.big{display:block;max-width:100%;border-radius:12px;margin:8px 0}
+.sheet{max-height:92vh;overflow:auto}
 nav a.on{opacity:1;color:var(--pri)}
 .panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px}
 .panel{display:flex;flex-direction:column;gap:6px;padding:26px 24px;border:1px solid var(--line);border-radius:22px;background:var(--bg);color:var(--fg);text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.05);transition:transform .2s,box-shadow .2s,border-color .2s}
@@ -160,7 +167,7 @@ footer{border-top:1px solid var(--line);padding:26px 20px;text-align:center;colo
 <body>
 <header class="top"><div class="top-in">
   <a class="logo" href="/">BOT<b>.</b>CONSOLE</a>
-  <nav><a href="/shop" data-p="shop">SHOP</a><a href="/music" data-p="music">MUSIC</a><a href="/mod" data-p="mod">MODERATION</a></nav>
+  <nav><a href="/shop" data-p="shop">SHOP</a><a href="/music" data-p="music">MUSIC</a><a href="/mod" data-p="mod">MODERATION</a><a href="/cmd" data-p="cmd">COMMANDS</a></nav>
   <div id="auth"></div>
 </div></header>
 
@@ -181,6 +188,7 @@ footer{border-top:1px solid var(--line);padding:26px 20px;text-align:center;colo
       <a class="panel" href="/shop"><small>01</small><div class="pt">Shop</div><p>발로란트 오늘의 상점 · 장식상점 · 번들 · 야시장</p><div class="go">OPEN &rarr;</div></a>
       <a class="panel" href="/music"><small>02</small><div class="pt">Music</div><p>노래 재생, 스킵, 일시정지, 대기열 확인</p><div class="go">OPEN &rarr;</div></a>
       <a class="panel" href="/mod"><small>03</small><div class="pt">Moderation</div><p>경고 · 뮤트 · 차단 (서버 관리자 전용)</p><div class="go">OPEN &rarr;</div></a>
+      <a class="panel" href="/cmd"><small>04</small><div class="pt">Commands</div><p>봇의 모든 명령어를 웹에서 실행 (Ctrl+K 로 어디서나 검색)</p><div class="go">OPEN &rarr;</div></a>
     </div>
   </section>
 
@@ -218,6 +226,12 @@ footer{border-top:1px solid var(--line);padding:26px 20px;text-align:center;colo
     <input id="playQuery" placeholder="검색어 또는 유튜브 링크">
     <button class="pri" id="playBtn">재생 / 대기열 추가</button>
     <div id="playLog" class="log"></div>
+  </section>
+
+  <section id="cmdSec" class="locked">
+    <div class="sec-h"><small>04</small><h2>Commands</h2><span>모든 명령어</span></div>
+    <input id="cSearch" placeholder="명령어 검색 (Ctrl+K 로 어디서나 열기)" autocomplete="off">
+    <div id="cList"><div class="log">불러오는 중...</div></div>
   </section>
 
   <section id="modSec" class="locked">
@@ -364,10 +378,11 @@ $('#vAcc').addEventListener('change', loadShop);
   const me = await (await fetch('/auth/me')).json();
   if (me.loggedIn) {
     $('#auth').innerHTML = `${me.username} 님 · <a class="btn sec" href="/auth/logout">로그아웃</a>`;
-    $('#musicSec').classList.remove('locked'); $('#modSec').classList.remove('locked'); $('#shopSec').classList.remove('locked');
+    $('#musicSec').classList.remove('locked'); $('#modSec').classList.remove('locked'); $('#shopSec').classList.remove('locked'); $('#cmdSec').classList.remove('locked');
     if (PAGE === 'shop') loadShopAccounts();
     if (PAGE === 'music') { loadChannels(); refreshQueue(); }
     if (PAGE === 'home') loadOverview();
+    if (PAGE === 'cmd') loadCmds();
   } else {
     $('#auth').innerHTML = `<a class="btn pri" href="/auth/login?next=${encodeURIComponent(location.pathname)}">Discord로 로그인</a>`;
     $('#gate').style.display = 'block';
@@ -503,9 +518,80 @@ $('#mRes').addEventListener('click', async e =>{
 });
 document.querySelectorAll('#durChips button').forEach(b =>b.addEventListener('click', () =>{ $('#modDuration').value = b.dataset.d; }));
 
+// ── 명령어 패널: 봇의 모든 명령어를 폼으로 만들어 실행 ──
+let cmds = [], textCh = [], voiceCh = [];
+const NEED_CH = ['purge', 'slowmode', 'lock', 'unlock'], DANGER = ['ban', 'kick', 'purge', 'unban', 'clearwarns', 'vlogout'];
+async function loadCmds() {
+  try {
+    const [r, ch] = await Promise.all([submitJob('cmdlist', {}), submitJob('channels', {})]);
+    cmds = r.commands; voiceCh = ch.channels; textCh = ch.text ?? [];
+    renderCmds();
+    const c = new URLSearchParams(location.search).get('c'); if (c) openCmd(c);
+  } catch (e) { $('#cList').innerHTML = `<div class="log">${esc(e.message)}</div>`; }
+}
+function renderCmds() {
+  const q = $('#cSearch').value.trim().toLowerCase();
+  const list = cmds.filter(c => !q || c.name.includes(q) || c.desc.toLowerCase().includes(q));
+  $('#cList').innerHTML = ['일반', '관리자'].map(g => {
+    const L = list.filter(c => (g === '관리자') === c.admin);
+    return L.length ? `<h3>${g}</h3><div class="grid">` + L.map((c, i) => `<div class="card cmd" data-c="${esc(c.name)}" style="--i:${Math.min(i, 10)}"><div class="meta"><div class="nm">/${esc(c.name)}</div><div class="ds">${esc(c.desc)}</div></div></div>`).join('') + '</div>' : '';
+  }).join('') || '<div class="log">검색 결과가 없어요.</div>';
+}
+$('#cSearch').addEventListener('input', renderCmds);
+$('#cList').addEventListener('click', e => { const c = e.target.closest('.card[data-c]'); if (c) openCmd(c.dataset.c); });
+const chOpts = (list, ph) => `<option value="">${ph}</option>` + list.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+function fieldHtml(o) {
+  if (o.t === 'att') return '';
+  const id = 'f_' + o.name, lab = `<label class="lbl" for="${id}">${esc(o.desc)}${o.req ? ' *' : ''}</label>`;
+  if (o.choices) return lab + `<select id="${id}" data-n="${esc(o.name)}">${chOpts(o.choices.map(c => ({ id: c.value, name: c.name })), o.req ? '선택' : '선택 안 함')}</select>`;
+  if (o.t === 'ch') return lab + `<select id="${id}" data-n="${esc(o.name)}">${chOpts(textCh, o.req ? '채널 선택' : '선택 안 함')}</select>`;
+  const ph = { user: '유저 ID 또는 이름', role: '역할 이름 또는 ID', int: '숫자' }[o.t] ?? '';
+  return lab + `<input id="${id}" data-n="${esc(o.name)}" ${o.t === 'int' ? `type="number"${o.min != null ? ` min="${o.min}"` : ''}${o.max != null ? ` max="${o.max}"` : ''}` : ''} placeholder="${ph}" autocomplete="off">`;
+}
+const renderMsgs = ms => (ms ?? []).map(m => typeof m === 'string' ? `<div class="out">${md(m)}</div>` : `<div class="out">${m.content ? md(m.content) : ''}${(m.embeds ?? []).map(e => `${e.title ? `<b>${md(e.title)}</b><br>` : ''}${e.description ? md(e.description) + '<br>' : ''}${(e.fields ?? []).map(f => `<b>${md(f.name)}</b> ${md(f.value)}`).join('<br>')}${img(e.image?.url, 'big')}`).join('<hr>')}</div>`).join('') || '<div class="out">완료</div>';
+function openCmd(name) {
+  const c = cmds.find(x => x.name === name); if (!c) return toast('없는 명령어예요.', true);
+  const extra = (NEED_CH.includes(name) ? `<label class="lbl" for="f__ch">실행할 채널 *</label><select id="f__ch">${chOpts(textCh, '채널 선택')}</select>` : '')
+    + (name === 'play' ? `<label class="lbl" for="f__vc">음성 채널 *</label><select id="f__vc">${chOpts(voiceCh, '채널 선택')}</select>` : '');
+  sheet(`<h4>/${esc(c.name)}</h4><p>${esc(c.desc)}</p>${c.opts.map(fieldHtml).join('')}${extra}<div id="cOut"></div><div class="row" style="margin-top:16px"><button data-x="0">닫기</button><button class="pri" data-run>실행</button></div>`, (s, close) => {
+    s.querySelector('[data-x]').onclick = close;
+    const run = s.querySelector('[data-run]');
+    run.onclick = async () => {
+      const values = {}; s.querySelectorAll('[data-n]').forEach(el => { values[el.dataset.n] = el.value; });
+      if (DANGER.includes(name) && !(await confirmSheet('/' + name + ' 을 실행할까요?', Object.values(values).filter(Boolean).join(' / ') || '확인해 주세요', '실행'))) return;
+      run.disabled = true; s.querySelector('#cOut').innerHTML = '<div class="log pulse">봇에게 요청하는 중...</div>';
+      try {
+        const r = await submitJob('cmd', { name, values, channelId: s.querySelector('#f__ch')?.value || '', voiceChannelId: s.querySelector('#f__vc')?.value || '' }, 70000);
+        s.querySelector('#cOut').innerHTML = renderMsgs(r.messages); toast('/' + name + ' 완료');
+      } catch (e) { s.querySelector('#cOut').innerHTML = `<div class="out">${esc(e.message)}</div>`; toast(e.message, true); }
+      finally { run.disabled = false; }
+    };
+  });
+}
+
+// ── Ctrl+K: 어디서나 패널/명령어 검색 ──
+let palCmds = null;
+addEventListener('keydown', e => {
+  if (!((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')) return;
+  e.preventDefault(); if (document.querySelector('.sheet-bg')) return;
+  const pages = [['홈', '/'], ['상점', '/shop'], ['음악', '/music'], ['관리', '/mod'], ['명령어', '/cmd']];
+  sheet('<input id="pIn" placeholder="이동할 곳이나 명령어를 검색해요" autocomplete="off"><div id="pList" style="max-height:50vh;overflow:auto"></div>', s => {
+    const inp = s.querySelector('#pIn'), box = s.querySelector('#pList');
+    const draw = () => {
+      const q = inp.value.trim().toLowerCase();
+      const items = [...pages.map(p => ({ t: p[0], h: p[1] })), ...(palCmds ?? []).map(c => ({ t: '/' + c.name + '  ' + c.desc, h: '/cmd?c=' + c.name }))].filter(x => !q || x.t.toLowerCase().includes(q)).slice(0, 30);
+      box.innerHTML = items.map((x, i) => `<div class="mem" style="--i:${Math.min(i, 8)}" data-h="${esc(x.h)}">${esc(x.t)}</div>`).join('') || '<div class="log">결과가 없어요.</div>';
+    };
+    inp.addEventListener('input', draw); draw(); inp.focus();
+    inp.addEventListener('keydown', k => { if (k.key === 'Enter') box.querySelector('.mem')?.click(); });
+    box.addEventListener('click', k => { const m = k.target.closest('.mem'); if (m) location.href = m.dataset.h; });
+    if (!palCmds && !$('#cmdSec').classList.contains('locked')) submitJob('cmdlist', {}).then(r => { palCmds = r.commands; draw(); }).catch(() => {});
+  });
+});
+
 // ── 현재 패널 표시 ──
 document.querySelectorAll('nav a').forEach(a =>a.classList.toggle('on', a.dataset.p === PAGE));
-if (PAGE !== 'home') document.title = { shop: 'SHOP', music: 'MUSIC', mod: 'MODERATION' }[PAGE] + ' · BOT.CONSOLE';
+if (PAGE !== 'home') document.title = { shop: 'SHOP', music: 'MUSIC', mod: 'MODERATION', cmd: 'COMMANDS' }[PAGE] + ' · BOT.CONSOLE';
 
 // ── 스크롤하면 섹션이 부드럽게 나타나고, 스크롤하면 상단 바에 그림자 ──
 try {
