@@ -543,7 +543,7 @@ async function loadCmds() {
     const c = new URLSearchParams(location.search).get('c'); if (c) openCmd(c);
   } catch (e) { $('#cList').innerHTML = `<div class="log">${esc(e.message)}</div>`; }
 }
-const SRC = { etc: ['전체 명령어', ''], economy: ['economy.js', '경제'], index: ['index.js', '기본 · 관리, 음악, 상점'], invites: ['invites.js', '초대 추적'], musicpanel: ['musicpanel.js', '음악 패널'], scrim: ['scrim.js', '발로란트 내전'], tickets: ['tickets.js', '티켓'], valstats: ['valstats.js', '발로란트 전적'] };
+const SRC = { etc: ['전체 명령어', ''], economy: ['economy.js', '경제'], index: ['index.js', '기본 · 관리, 음악, 상점'], invites: ['invites.js', '초대 추적'], musicpanel: ['musicpanel.js', '음악 패널'], scrim: ['scrim.js', '발로란트 내전'], study: ['study.js', 'AI 공부'], tickets: ['tickets.js', '티켓'], valstats: ['valstats.js', '발로란트 전적'] };
 let srcSel = '';
 function renderCmds() {
   const q = $('#cSearch').value.trim().toLowerCase();
