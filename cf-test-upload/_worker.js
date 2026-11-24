@@ -104,6 +104,10 @@ export default {
           .bind(id, type, JSON.stringify(b.data ?? {}), session.discordId, Date.now()).run();
         return json({ id });
       }
+      if (p === '/api/history') { // 최근 실행한 명령어와 결과 요약 (결과 본문은 /api/result 로 불러옴, 1시간 보관)
+        const { results } = await env.DB.prepare("SELECT id, status, created, json_extract(data, '$.name') AS name, json_extract(data, '$.values') AS vals, json_extract(result, '$.summary') AS summary, json_extract(result, '$.error') AS err FROM jobs WHERE actor = ? AND type = 'cmd' ORDER BY created DESC LIMIT 20").bind(session.discordId).all();
+        return json({ items: results });
+      }
       if (p === '/api/result') {
         const row = await env.DB.prepare('SELECT status, result FROM jobs WHERE id = ? AND actor = ?').bind(url.searchParams.get('id') ?? '', session.discordId).first(); // 본인이 만든 작업만 조회
         if (!row) return json({ status: 'none' }, 404);
