@@ -283,8 +283,19 @@ const SFX = /^(이다|입니다|이에요|예요|이라고|라고|으로|에서|
 const shortOk = (g, ans, alts) => { const x0 = norm(g); if (!x0) return false; const x = x0.replace(/^(정답은|정답|답은|답)/, '') || x0; return [ans, ...(alts || [])].map(norm).filter(Boolean).some(c => c === x0 || c === x || (/^\d+$/.test(c) ? new RegExp('^' + c + '(년|월|일|개|명|번|회|원|도|퍼센트|%)?$').test(x) : x.startsWith(c) && SFX.test(x.slice(c.length)))); };
 const isOk = (q, g) => q.type === 'short' ? shortOk(g, q.answer, q.alts) : g === q.answer;
 function answer(g) {
-  if (!Q.open) return; Q.open = false; const q = Q.qs[Q.i], ok = !!isOk(q, g); Q.done++; Q.lastGiven = g; let note = '';
-  if (ok) { Q.score++; if (Q.review) { const w = wrongs.find(x => norm(x.q) === norm(q.q)); if (w) { w.box = (w.box || 0) + 1; if (w.box >= 3) { Q.fixed.push(q.q); wrongs = wrongs.filter(x => x !== w); note = '복습 3단계 완료. 오답노트에서 졸업했어요.'; } else { w.due = Date.now() + STEP[w.box - 1] * DAY; note = `복습 ${w.box}/3단계 · ${STEP[w.box - 1]}일 뒤에 다시 나와요.`; } saveWrongs(); } } }
+  if (!Q.open) return; Q.open = false; const q = Q.qs[Q.i];
+  if (q.type === 'short' && !isOk(q, g) && String(g).trim()) { // 로컬 채점에서 틀리면 AI 에게 같은 뜻인지 한 번 더 물어봐요
+    $('#fb').innerHTML = '<div class="fb">AI가 답이 같은 뜻인지 확인하는 중...</div>'; if ($('#sa')) { $('#sa').disabled = true; $('#sgo2').disabled = true; }
+    api({ action: 'grade', subject: Q.subject === '전체' ? q.subject || '' : Q.subject, q: q.q, answer: q.answer, alts: q.alts || [], given: String(g).trim() }, 30000)
+      .then(r => settle(g, r.ok === true, r.ok === true ? 'AI가 같은 뜻의 답으로 인정했어요.' : r.why ? 'AI 판정: ' + r.why : ''))
+      .catch(() => settle(g, false, ''));
+    return;
+  }
+  settle(g, !!isOk(q, g), '');
+}
+function settle(g, ok, aiNote) {
+  const q = Q.qs[Q.i]; Q.done++; Q.lastGiven = g; let note = aiNote;
+  if (ok) { Q.score++; if (Q.review) { const w = wrongs.find(x => norm(x.q) === norm(q.q)); if (w) { w.box = (w.box || 0) + 1; if (w.box >= 3) { Q.fixed.push(q.q); wrongs = wrongs.filter(x => x !== w); note += (note ? '\n' : '') + '복습 3단계 완료. 오답노트에서 졸업했어요.'; } else { w.due = Date.now() + STEP[w.box - 1] * DAY; note += (note ? '\n' : '') + `복습 ${w.box}/3단계 · ${STEP[w.box - 1]}일 뒤에 다시 나와요.`; } saveWrongs(); } } }
   else { Q.wrong.push(q); addWrong(Q.subject === '전체' ? q.subject || '기타' : Q.subject, q); saveWrongs(); }
   $$('#qplay .opt').forEach(b => { b.disabled = true; const k = +b.dataset.g; if (k === q.answer) b.classList.add('ok'); else if (k === g) b.classList.add('no'); });
   if ($('#sa')) { $('#sa').disabled = true; $('#sgo2').disabled = true; }
