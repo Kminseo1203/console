@@ -3,7 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI 공부방</title>
+<title>AI 기출문제 연습</title>
+<meta name="application-name" content="AI 기출문제 연습">
+<meta name="apple-mobile-web-app-title" content="AI 기출문제 연습">
+<meta property="og:title" content="AI 기출문제 연습">
+<meta property="og:site_name" content="AI 기출문제 연습">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2048%2048%22%20width%3D%2246%22%20height%3D%2246%22%20aria-hidden%3D%22true%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22a%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23d9544a%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%238f1f1f%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width%3D%2248%22%20height%3D%2248%22%20rx%3D%2213%22%20fill%3D%22url%28%23a%29%22/%3E%3Cpath%20d%3D%22M9%2017c5-2.2%2010-1.6%2015%201.6v17.5c-5-3.2-10-3.8-15-1.6z%22%20fill%3D%22%23fff%22/%3E%3Cpath%20d%3D%22M39%2017c-5-2.2-10-1.6-15%201.6v17.5c5-3.2%2010-3.8%2015-1.6z%22%20fill%3D%22%23fff%22%20opacity%3D%22.82%22/%3E%3Cpath%20d%3D%22M24%204l1.8%204.2L30%2010l-4.2%201.8L24%2016l-1.8-4.2L18%2010l4.2-1.8z%22%20fill%3D%22%23ffd66b%22/%3E%3C/svg%3E">
 <style>
 :root{--bg:#f7f4ee;--card:#fff;--ink:#1d1b18;--mute:#7a746b;--line:#e4dfd5;--acc:#a62b2b;--accbg:#f4e3e1;--ok:#1f8a4c;--okbg:#e2f3e8;--bad:#c0392b;--badbg:#fbe4e1;--sh:0 1px 2px rgba(0,0,0,.05)}
@@ -13,7 +17,7 @@ html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif}
 .wrap{max-width:760px;margin:0 auto;padding:18px 16px 60px}
 header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
-h1{font-size:21px;margin:0;flex:1;min-width:140px}
+h1{font-size:21px;margin:0;flex:1;min-width:140px;line-height:1.25}
 .chip{font-size:12px;padding:3px 10px;border-radius:99px;background:var(--accbg);color:var(--acc);font-weight:600;white-space:nowrap}
 .chip.m{background:var(--card);color:var(--mute);border:1px solid var(--line);font-weight:500}
 nav{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:12px;scrollbar-width:none}
@@ -101,7 +105,7 @@ nav button.on{box-shadow:0 4px 12px rgba(166,43,43,.3)}
 <div class="wrap">
   <header>
     <div class="logo"><svg viewBox="0 0 48 48" width="46" height="46" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d9544a"/><stop offset="1" stop-color="#8f1f1f"/></linearGradient></defs><rect width="48" height="48" rx="13" fill="url(#lg)"/><path d="M9 17c5-2.2 10-1.6 15 1.6v17.5c-5-3.2-10-3.8-15-1.6z" fill="#fff"/><path d="M39 17c-5-2.2-10-1.6-15 1.6v17.5c5-3.2 10-3.8 15-1.6z" fill="#fff" opacity=".82"/><path class="spark" d="M24 4l1.8 4.2L30 10l-4.2 1.8L24 16l-1.8-4.2L18 10l4.2-1.8z" fill="#ffd66b"/></svg></div>
-    <h1>AI 공부방</h1>
+    <h1>AI 기출문제 출제마법사</h1>
     <span class="chip hide" id="dd"></span>
     <span class="chip m hide" id="use"></span>
     <span class="mute" id="who"></span>
@@ -359,9 +363,9 @@ const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60
 function beep() { try { const c = new (window.AudioContext || window.webkitAudioContext)(), o = c.createOscillator(), g = c.createGain(); o.connect(g); g.connect(c.destination); o.frequency.value = 880; g.gain.value = .15; o.start(); o.stop(c.currentTime + .6); } catch {} }
 function pomoDraw() {
   const cnt = load('st_pcnt', { d: '', n: 0 }); $('#pcnt').textContent = cnt.d === new Date().toDateString() ? `오늘 집중 ${cnt.n}번 완료` : '';
-  if (!T) { $('#pph').textContent = '대기 중'; $('#ptm').textContent = fmt((+$('#pf').value || 25) * 60); $('#pgo').textContent = '시작'; $('#ptm').classList.remove('run'); document.title = 'AI 공부방'; return; }
+  if (!T) { $('#pph').textContent = '대기 중'; $('#ptm').textContent = fmt((+$('#pf').value || 25) * 60); $('#pgo').textContent = '시작'; $('#ptm').classList.remove('run'); document.title = 'AI 기출문제 연습'; return; }
   const left = Math.max(0, Math.round((T.end - Date.now()) / 1000));
-  $('#pph').textContent = T.phase === 'focus' ? '집중 중' : '휴식 중'; $('#ptm').textContent = fmt(left); $('#pgo').textContent = '진행 중'; $('#ptm').classList.add('run'); document.title = `${fmt(left)} · AI 공부방`;
+  $('#pph').textContent = T.phase === 'focus' ? '집중 중' : '휴식 중'; $('#ptm').textContent = fmt(left); $('#pgo').textContent = '진행 중'; $('#ptm').classList.add('run'); document.title = `${fmt(left)} · AI 기출문제 연습`;
   if (left <= 0) {
     beep();
     if (T.phase === 'focus') { const c = load('st_pcnt', { d: '', n: 0 }), d = new Date().toDateString(); keep('st_pcnt', { d, n: (c.d === d ? c.n : 0) + 1 }); T = { ...T, phase: 'rest', end: Date.now() + T.rest * 60000 }; }
