@@ -278,7 +278,10 @@ function draw() {
   h += `<div id="fb"></div><div class="acts"><button class="btn" id="qx">그만하기</button></div><p class="mute" style="margin:10px 0 0">단축키: 객관식 1~4, OX는 O/X, 다음 문제는 →</p>`;
   $('#qplay').innerHTML = h; Q.open = true; $('#sa')?.focus();
 }
-const isOk = (q, g) => q.type === 'short' ? (g = norm(g)) && [q.answer, ...(q.alts || [])].some(a => norm(a) === g) : g === q.answer;
+// 단답형 채점: 완전 일치 + 정답 뒤에 조사/어미만 붙은 답("인구증가때문에", "정답은 인구증가예요") + 숫자 정답의 단위("1945년"). 글자가 하나라도 다른 답(간접/직접 등)은 오답이에요.
+const SFX = /^(이다|입니다|이에요|예요|이라고|라고|으로|에서|때문에|때문|이|가|은|는|을|를|의|에|로|도|만|요)?$/;
+const shortOk = (g, ans, alts) => { const x0 = norm(g); if (!x0) return false; const x = x0.replace(/^(정답은|정답|답은|답)/, '') || x0; return [ans, ...(alts || [])].map(norm).filter(Boolean).some(c => c === x0 || c === x || (/^\d+$/.test(c) ? new RegExp('^' + c + '(년|월|일|개|명|번|회|원|도|퍼센트|%)?$').test(x) : x.startsWith(c) && SFX.test(x.slice(c.length)))); };
+const isOk = (q, g) => q.type === 'short' ? shortOk(g, q.answer, q.alts) : g === q.answer;
 function answer(g) {
   if (!Q.open) return; Q.open = false; const q = Q.qs[Q.i], ok = !!isOk(q, g); Q.done++; Q.lastGiven = g; let note = '';
   if (ok) { Q.score++; if (Q.review) { const w = wrongs.find(x => norm(x.q) === norm(q.q)); if (w) { w.box = (w.box || 0) + 1; if (w.box >= 3) { Q.fixed.push(q.q); wrongs = wrongs.filter(x => x !== w); note = '복습 3단계 완료. 오답노트에서 졸업했어요.'; } else { w.due = Date.now() + STEP[w.box - 1] * DAY; note = `복습 ${w.box}/3단계 · ${STEP[w.box - 1]}일 뒤에 다시 나와요.`; } saveWrongs(); } } }
